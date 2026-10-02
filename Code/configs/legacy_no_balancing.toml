@@ -1,0 +1,34 @@
+# The control arm the paper describes but never ran: no class balancing at all.
+# Identical to legacy_weighted_sampler.toml except for train.balancing.
+
+[run]
+name = "legacy_no_balancing"
+seed = 42
+
+[paths]  # relative to Code/
+raw_dir = "WESAD"
+data_dir = "data_preprocessed"
+out_dir = "runs/legacy_no_balancing"
+
+[preprocess]
+target_rate = 32
+window_sec = 10
+overlap = 0.5
+majority_threshold = 0.6
+
+[model]
+cnn_channels = 64
+gru_hidden = 128
+gru_layers = 2
+attn_heads = 4
+dropout = 0.3
+
+[train]
+balancing = "none"
+batch_size = 128
+epochs = 25
+lr = 1e-3
+patience = 6
+grad_clip = 5.0
+val_fraction = 0.1
+lr_scheduler = "none"

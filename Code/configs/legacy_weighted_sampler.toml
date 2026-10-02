@@ -1,0 +1,35 @@
+# Reproduces the run the paper calls "balanced" (commit 98b510f, 24 Dec 2025):
+# WeightedRandomSampler with plain cross-entropy.
+# Values are the ones the experiment actually used, not the ones the draft states.
+
+[run]
+name = "legacy_weighted_sampler"
+seed = 42
+
+[paths]  # relative to Code/
+raw_dir = "WESAD"
+data_dir = "data_preprocessed"
+out_dir = "runs/legacy_weighted_sampler"
+
+[preprocess]
+target_rate = 32          # nominal; int(700 / 32) = 21 gives 33.3 Hz in practice
+window_sec = 10           # the draft says 60
+overlap = 0.5
+majority_threshold = 0.6  # the draft says 0.7
+
+[model]
+cnn_channels = 64
+gru_hidden = 128
+gru_layers = 2
+attn_heads = 4
+dropout = 0.3
+
+[train]
+balancing = "weighted_sampler"
+batch_size = 128
+epochs = 25
+lr = 1e-3
+patience = 6
+grad_clip = 5.0
+val_fraction = 0.1
+lr_scheduler = "none"
