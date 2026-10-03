@@ -13,6 +13,8 @@ Rebuild tables and figures from existing fold results (no dataset needed):
 from __future__ import annotations
 
 import argparse
+import hashlib
+import time
 from pathlib import Path
 
 from pipeline.config import CODE_DIR, load_config
@@ -29,23 +31,31 @@ def cmd_run(args) -> None:
 
     device = torch.device(args.device) if args.device else None
     configs = [load_config(path) for path in args.config]
+    if args.seeds:
+        configs = [cfg.with_seed(seed) for cfg in configs for seed in args.seeds]
     names = [cfg.name for cfg in configs]
     if len(set(names)) != len(names):
         raise SystemExit(f"Config run names must be unique, got {names}")
 
+    # One time budget shared by every config in this invocation.
+    deadline = None if args.max_minutes is None else time.perf_counter() + args.max_minutes * 60
     for cfg in configs:
         cfg.out_dir.mkdir(parents=True, exist_ok=True)
         if "preprocess" in args.stages:
             preprocess_all(cfg, force=args.force_preprocess)
         if "train" in args.stages:
-            results = run_loso(cfg, device=device, resume=args.resume, max_minutes=args.max_minutes)
+            remaining = None if deadline is None else max(0.0, (deadline - time.perf_counter()) / 60)
+            results = run_loso(cfg, device=device, resume=args.resume, max_minutes=remaining)
             if len(results) < len(list(cfg.data_dir.glob("*_combined.npz"))):
                 return  # stopped by the time budget; nothing complete to report yet
         if "report" in args.stages:
             report({cfg.name: cfg.out_dir}, cfg.out_dir / "report")
 
     if "report" in args.stages and len(configs) > 1:
-        report({cfg.name: cfg.out_dir for cfg in configs}, CODE_DIR / "runs" / ("compare_" + "_vs_".join(names)))
+        label = "_vs_".join(names)
+        if len(configs) > 3:  # keep Windows paths short
+            label = f"{len(configs)}_runs_" + hashlib.sha1(label.encode()).hexdigest()[:8]
+        report({cfg.name: cfg.out_dir for cfg in configs}, CODE_DIR / "runs" / f"compare_{label}")
 
 
 def cmd_report(args) -> None:
@@ -84,6 +94,8 @@ def main() -> None:
     run.add_argument("--resume", action="store_true", help="keep folds already finished with the same config")
     run.add_argument("--max-minutes", type=float, default=None,
                      help="start no new fold after this long; rerun with --resume to continue")
+    run.add_argument("--seeds", type=int, nargs="+", default=None,
+                     help="run each config once per seed, in <out_dir>_seed<N> folders")
     run.set_defaults(func=cmd_run)
 
     rep = sub.add_parser("report", help="tables and figures from existing fold result files")

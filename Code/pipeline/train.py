@@ -16,7 +16,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler
 
-from .config import CLASS_NAMES, CODE_DIR, NUM_CLASSES, RunConfig
+from .config import ADDED_TRAIN_DEFAULTS, CODE_DIR, TASKS, RunConfig
 from .model import build_model, count_parameters
 from .preprocess import preprocessed_files
 
@@ -51,29 +51,42 @@ def channel_mean_std(npz_paths: list[Path]) -> tuple[np.ndarray, np.ndarray]:
     return mean, std
 
 
-def load_normalised(npz_paths: list[Path], mean, std) -> tuple[torch.Tensor, torch.Tensor]:
-    Xs, ys = [], []
-    for p in npz_paths:
+def load_normalised(npz_paths: list[Path], mean, std, task: str = "four_class"):
+    """Windows, labels and the index of the file (subject) each window came from.
+
+    Labels are mapped to the task's classes; windows of classes the task does
+    not use are dropped.
+    """
+    mapping = TASKS[task]["map"]
+    lookup = np.full(4, -1, dtype=np.int64)
+    for src, dst in mapping.items():
+        lookup[src] = dst
+
+    Xs, ys, groups = [], [], []
+    for i, p in enumerate(npz_paths):
         with np.load(p) as arr:
             X = arr["X"].astype(np.float32)
-            y = arr["y"].astype(np.int64)
+            y = lookup[arr["y"].astype(np.int64)]
+        keep = y >= 0
+        X, y = X[keep], y[keep]
         Xs.append(torch.from_numpy((X - mean[None, None, :]) / (std[None, None, :] + 1e-9)))
         ys.append(torch.from_numpy(y))
-    return torch.cat(Xs), torch.cat(ys)
+        groups.append(torch.full((len(y),), i, dtype=torch.int64))
+    return torch.cat(Xs), torch.cat(ys), torch.cat(groups)
 
 
-def balanced_class_weights(y: torch.Tensor) -> torch.Tensor:
+def balanced_class_weights(y: torch.Tensor, num_classes: int) -> torch.Tensor:
     y_np = y.numpy()
-    weights = np.ones(NUM_CLASSES, dtype=np.float32)
+    weights = np.ones(num_classes, dtype=np.float32)
     present = np.unique(y_np)
     for c, w in zip(present, compute_class_weight("balanced", classes=present, y=y_np)):
         weights[int(c)] = float(w)
     return torch.from_numpy(weights)
 
 
-def balanced_sampler(y: torch.Tensor, generator: torch.Generator) -> WeightedRandomSampler:
+def balanced_sampler(y: torch.Tensor, num_classes: int, generator: torch.Generator) -> WeightedRandomSampler:
     y_np = y.numpy()
-    class_weights = 1.0 / np.maximum(np.bincount(y_np, minlength=NUM_CLASSES), 1)
+    class_weights = 1.0 / np.maximum(np.bincount(y_np, minlength=num_classes), 1)
     sample_weights = torch.tensor(class_weights[y_np], dtype=torch.double)
     return WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True, generator=generator)
 
@@ -94,13 +107,14 @@ def _mean_loss(model, loader, criterion, device, use_amp) -> float:
 def train_fold(cfg: RunConfig, model, X_train, y_train, X_val, y_val, ckpt: Path, device, generator, tag: str):
     """Train with early stopping on validation loss; best weights go to ``ckpt``."""
     tc = cfg.train
+    num_classes = len(TASKS[tc.task]["classes"])
     use_amp = device.type == "cuda"
     scaler = torch.amp.GradScaler(device.type, enabled=use_amp)
 
     if tc.balancing == "weighted_sampler":
         train_loader = DataLoader(
             TensorDataset(X_train, y_train), batch_size=tc.batch_size,
-            sampler=balanced_sampler(y_train, generator),
+            sampler=balanced_sampler(y_train, num_classes, generator),
         )
     else:
         train_loader = DataLoader(
@@ -108,7 +122,7 @@ def train_fold(cfg: RunConfig, model, X_train, y_train, X_val, y_val, ckpt: Path
         )
     val_loader = DataLoader(TensorDataset(X_val, y_val), batch_size=tc.batch_size, shuffle=False)
 
-    weight = balanced_class_weights(y_train).to(device) if tc.balancing == "weighted_loss" else None
+    weight = balanced_class_weights(y_train, num_classes).to(device) if tc.balancing == "weighted_loss" else None
     criterion = nn.CrossEntropyLoss(weight=weight)
     optimizer = torch.optim.AdamW(model.parameters(), lr=tc.lr)
     scheduler = None
@@ -164,14 +178,15 @@ def predict(model, X, batch_size: int, device) -> np.ndarray:
     return torch.cat(preds).numpy()
 
 
-def fold_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
-    labels = list(range(NUM_CLASSES))
+def fold_metrics(y_true: np.ndarray, y_pred: np.ndarray, class_names: list[str]) -> dict:
+    labels = list(range(len(class_names)))
     return {
+        "class_names": list(class_names),
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "f1_macro": float(f1_score(y_true, y_pred, labels=labels, average="macro", zero_division=0)),
         "confusion_matrix": confusion_matrix(y_true, y_pred, labels=labels).tolist(),
         "classification_report": classification_report(
-            y_true, y_pred, labels=labels, target_names=CLASS_NAMES, output_dict=True, zero_division=0,
+            y_true, y_pred, labels=labels, target_names=class_names, output_dict=True, zero_division=0,
         ),
     }
 
@@ -203,7 +218,22 @@ def _can_resume(cfg: RunConfig) -> bool:
     manifest_path = cfg.out_dir / "run_manifest.json"
     if not manifest_path.exists():
         return False
-    return json.loads(manifest_path.read_text())["config"] == cfg.to_dict()
+    saved = json.loads(manifest_path.read_text())["config"]
+    saved["train"] = {**ADDED_TRAIN_DEFAULTS, **saved["train"]}
+    return saved == cfg.to_dict()
+
+
+def split_validation(cfg: RunConfig, n_windows: int, groups: torch.Tensor, generator: torch.Generator):
+    """Indices of the training and validation windows within the training subjects."""
+    if cfg.train.validation == "subjects":
+        subjects = torch.unique(groups)
+        chosen = subjects[torch.randperm(len(subjects), generator=generator)[: cfg.train.val_subjects]]
+        is_val = torch.isin(groups, chosen)
+        return torch.nonzero(~is_val).squeeze(1), torch.nonzero(is_val).squeeze(1)
+
+    idx = torch.randperm(n_windows, generator=generator)
+    n_val = max(1, int(cfg.train.val_fraction * len(idx)))
+    return idx[n_val:], idx[:n_val]
 
 
 def run_loso(cfg: RunConfig, device: torch.device | None = None, resume: bool = False,
@@ -224,6 +254,7 @@ def run_loso(cfg: RunConfig, device: torch.device | None = None, resume: bool = 
     resume = resume and _can_resume(cfg)
     write_run_manifest(cfg, device)
 
+    class_names = TASKS[cfg.train.task]["classes"]
     results, started = [], time.perf_counter()
     for fold_idx, test_file in enumerate(files):
         test_subj = subject_of(test_file)
@@ -246,18 +277,17 @@ def run_loso(cfg: RunConfig, device: torch.device | None = None, resume: bool = 
 
         train_files = [f for f in files if f != test_file]
         mean, std = channel_mean_std(train_files)
-        X_all, y_all = load_normalised(train_files, mean, std)
-        X_test, y_test = load_normalised([test_file], mean, std)
+        X_all, y_all, groups = load_normalised(train_files, mean, std, cfg.train.task)
+        X_test, y_test, _ = load_normalised([test_file], mean, std, cfg.train.task)
+        train_idx, val_idx = split_validation(cfg, len(X_all), groups, generator)
 
-        idx = torch.randperm(len(X_all), generator=generator)
-        n_val = max(1, int(cfg.train.val_fraction * len(idx)))
-        val_idx, train_idx = idx[:n_val], idx[n_val:]
-
-        model = build_model(X_all.shape[2], cfg.model).to(device)
+        model = build_model(X_all.shape[2], cfg.model, len(class_names)).to(device)
         n_params = count_parameters(model)
         print(f"Model built - {n_params:,} trainable parameters")
 
         ckpt = ckpt_dir / f"best_{test_subj}.pt"
+        if device.type == "cuda":
+            torch.cuda.reset_peak_memory_stats(device)
         t0 = time.perf_counter()
         best_val, epochs_run = train_fold(
             cfg, model, X_all[train_idx], y_all[train_idx], X_all[val_idx], y_all[val_idx],
@@ -270,10 +300,12 @@ def run_loso(cfg: RunConfig, device: torch.device | None = None, resume: bool = 
 
         result = {
             "subject": test_subj,
-            **fold_metrics(y_test.numpy(), y_pred),
+            **fold_metrics(y_test.numpy(), y_pred, class_names),
             "best_val_loss": float(best_val),
             "epochs_run": epochs_run,
             "train_seconds": round(train_seconds, 1),
+            "seconds_per_epoch": round(train_seconds / max(1, epochs_run), 2),
+            "peak_gpu_mb": round(torch.cuda.max_memory_allocated(device) / 2**20) if device.type == "cuda" else None,
             "n_parameters": n_params,
             "seed": fold_seed,
         }
@@ -281,7 +313,7 @@ def run_loso(cfg: RunConfig, device: torch.device | None = None, resume: bool = 
         results.append(result)
         print(f"[{test_subj}] TEST | acc={result['accuracy']:.4f} | f1_macro={result['f1_macro']:.4f}")
 
-        del model, X_all, y_all, X_test, y_test
+        del model, X_all, y_all, groups, X_test, y_test
         if device.type == "cuda":
             torch.cuda.empty_cache()
 

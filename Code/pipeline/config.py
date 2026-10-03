@@ -7,7 +7,7 @@ run was produced with can never drift from the settings written in the paper.
 from __future__ import annotations
 
 import tomllib
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 # Relative paths in a config file are resolved against the Code/ directory.
@@ -63,11 +63,62 @@ class CleanPreprocessConfig:
 
 @dataclass(frozen=True)
 class ModelConfig:
+    """The original CNN -> BiGRU -> attention model, exactly as in the paper draft."""
+
     cnn_channels: int
     gru_hidden: int
     gru_layers: int
     attn_heads: int
     dropout: float
+
+
+RNN_TYPES = ("gru", "lstm", "none")
+
+
+@dataclass(frozen=True)
+class SeqModelConfig:
+    """Configurable model family for M3 (``arch = "seq"`` in the config).
+
+    A stack of conv blocks, each optionally followed by max-pooling by the
+    matching ``downsample`` factor, then an optional recurrent layer, optional
+    self-attention, mean pooling over time and a small classifier. With no
+    conv blocks, ``downsample`` may hold one factor for average-pooling the
+    raw input instead.
+    """
+
+    conv_channels: list[int]
+    downsample: list[int]
+    kernel_size: int = 5
+    separable: bool = False
+    rnn: str = "gru"
+    bidirectional: bool = True
+    rnn_hidden: int = 128
+    rnn_layers: int = 2
+    attention: bool = True
+    attn_heads: int = 4
+    dropout: float = 0.3
+    arch: str = "seq"
+
+    def __post_init__(self):
+        if self.rnn not in RNN_TYPES:
+            raise ValueError(f"model.rnn must be one of {RNN_TYPES}, got {self.rnn!r}")
+        if self.conv_channels and len(self.downsample) != len(self.conv_channels):
+            raise ValueError("model.downsample needs one factor per entry of model.conv_channels")
+        if not self.conv_channels and len(self.downsample) > 1:
+            raise ValueError("without conv blocks, model.downsample may hold at most one factor")
+        if not self.conv_channels and self.rnn == "none":
+            raise ValueError("a model needs conv blocks, a recurrent layer, or both")
+
+
+# Tasks map the four condition classes (baseline, stress, amusement,
+# meditation = 0..3) to the task's classes; unmapped classes are dropped.
+# Binary follows the dataset paper: stress against baseline + amusement.
+TASKS = {
+    "four_class": {"classes": ["baseline", "stress", "amusement", "meditation"], "map": {0: 0, 1: 1, 2: 2, 3: 3}},
+    "three_class": {"classes": ["baseline", "stress", "amusement"], "map": {0: 0, 1: 1, 2: 2}},
+    "binary": {"classes": ["non-stress", "stress"], "map": {0: 0, 2: 0, 1: 1}},
+}
+VALIDATION_MODES = ("random_windows", "subjects")
 
 
 @dataclass(frozen=True)
@@ -82,12 +133,27 @@ class TrainConfig:
     lr_scheduler: str = "none"
     min_delta: float = 0.0
     test_batch_size: int | None = None
+    task: str = "four_class"
+    # "random_windows" draws val_fraction of the training windows (the legacy
+    # behaviour; overlapping windows leak into validation). "subjects" holds
+    # out val_subjects whole training subjects instead.
+    validation: str = "random_windows"
+    val_subjects: int = 2
 
     def __post_init__(self):
         if self.balancing not in BALANCING_MODES:
             raise ValueError(f"train.balancing must be one of {BALANCING_MODES}, got {self.balancing!r}")
         if self.lr_scheduler not in LR_SCHEDULERS:
             raise ValueError(f"train.lr_scheduler must be one of {LR_SCHEDULERS}, got {self.lr_scheduler!r}")
+        if self.task not in TASKS:
+            raise ValueError(f"train.task must be one of {list(TASKS)}, got {self.task!r}")
+        if self.validation not in VALIDATION_MODES:
+            raise ValueError(f"train.validation must be one of {VALIDATION_MODES}, got {self.validation!r}")
+
+
+# Options added after runs were already saved. A saved run without them was
+# made with these values, which reproduce the earlier behaviour.
+ADDED_TRAIN_DEFAULTS = {"task": "four_class", "validation": "random_windows", "val_subjects": 2}
 
 
 @dataclass(frozen=True)
@@ -98,7 +164,7 @@ class RunConfig:
     data_dir: Path
     out_dir: Path
     preprocess: PreprocessConfig | CleanPreprocessConfig
-    model: ModelConfig
+    model: ModelConfig | SeqModelConfig
     train: TrainConfig
 
     def to_dict(self) -> dict:
@@ -106,6 +172,13 @@ class RunConfig:
         for key in ("raw_dir", "data_dir", "out_dir"):
             d[key] = str(d[key])
         return d
+
+    def with_seed(self, seed: int) -> "RunConfig":
+        """The same run under another seed, with its own name and output folder."""
+        return replace(
+            self, seed=seed, name=f"{self.name}_seed{seed}",
+            out_dir=self.out_dir.parent / f"{self.out_dir.name}_seed{seed}",
+        )
 
 
 def _resolve(path: str) -> Path:
@@ -122,6 +195,10 @@ def load_config(path: str | Path) -> RunConfig:
     mode = pre.pop("mode", "legacy")
     if mode not in ("legacy", "clean"):
         raise ValueError(f"preprocess.mode must be 'legacy' or 'clean', got {mode!r}")
+    model = dict(raw["model"])
+    arch = model.pop("arch", "legacy")
+    if arch not in ("legacy", "seq"):
+        raise ValueError(f"model.arch must be 'legacy' or 'seq', got {arch!r}")
     return RunConfig(
         name=run["name"],
         seed=int(run["seed"]),
@@ -129,6 +206,6 @@ def load_config(path: str | Path) -> RunConfig:
         data_dir=_resolve(paths["data_dir"]),
         out_dir=_resolve(paths["out_dir"]),
         preprocess=CleanPreprocessConfig(**pre) if mode == "clean" else PreprocessConfig(**pre),
-        model=ModelConfig(**raw["model"]),
+        model=SeqModelConfig(**model) if arch == "seq" else ModelConfig(**model),
         train=TrainConfig(**raw["train"]),
     )

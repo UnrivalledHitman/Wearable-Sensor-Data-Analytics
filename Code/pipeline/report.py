@@ -37,7 +37,28 @@ def load_folds(results_dir: Path) -> dict[str, np.ndarray]:
     return dict(sorted(folds.items(), key=lambda kv: int(kv[0].lstrip("S"))))
 
 
-def metrics_from_cm(cm: np.ndarray) -> dict:
+def _fold_files(results_dir: Path) -> list[Path]:
+    return [p for pattern in FOLD_PATTERNS for p in sorted(Path(results_dir).glob(pattern))]
+
+
+def fold_class_names(results_dir: Path) -> list[str]:
+    """Class names stored with the folds; older result files are all four-class."""
+    first = json.loads(_fold_files(results_dir)[0].read_text())
+    return first.get("class_names", CLASS_NAMES)
+
+
+def fold_costs(results_dir: Path) -> dict:
+    """Mean training cost per fold, for result files that record it."""
+    rows = [json.loads(p.read_text()) for p in _fold_files(results_dir)]
+    out = {}
+    for key in ("n_parameters", "seconds_per_epoch", "train_seconds", "epochs_run", "peak_gpu_mb"):
+        values = [r[key] for r in rows if r.get(key) is not None]
+        if values:
+            out[key] = float(np.mean(values))
+    return out
+
+
+def metrics_from_cm(cm: np.ndarray, class_names: list[str] = CLASS_NAMES) -> dict:
     n = cm.sum()
     support, predicted, correct = cm.sum(axis=1), cm.sum(axis=0), np.diag(cm)
     recall = np.divide(correct, support, out=np.zeros(len(cm)), where=support > 0)
@@ -60,16 +81,16 @@ def metrics_from_cm(cm: np.ndarray) -> dict:
         "kappa": float(kappa),
         "majority_accuracy": float(majority_share),
         "majority_f1_macro": float(majority_f1),
-        **{f"f1_{name}": float(v) for name, v in zip(CLASS_NAMES, f1)},
+        **{f"f1_{name}": float(v) for name, v in zip(class_names, f1)},
     }
 
 
-def per_subject_table(folds: dict[str, np.ndarray]) -> pd.DataFrame:
-    rows = [{"subject": subj, **metrics_from_cm(cm)} for subj, cm in folds.items()]
+def per_subject_table(folds: dict[str, np.ndarray], class_names: list[str] = CLASS_NAMES) -> pd.DataFrame:
+    rows = [{"subject": subj, **metrics_from_cm(cm, class_names)} for subj, cm in folds.items()]
     return pd.DataFrame(rows)
 
 
-def summarise(table: pd.DataFrame, folds: dict[str, np.ndarray]) -> dict:
+def summarise(table: pd.DataFrame, folds: dict[str, np.ndarray], class_names: list[str] = CLASS_NAMES) -> dict:
     metric_cols = [c for c in table.columns if c != "subject"]
     pooled = sum(folds.values())
     return {
@@ -80,16 +101,16 @@ def summarise(table: pd.DataFrame, folds: dict[str, np.ndarray]) -> dict:
         "std": {c: float(table[c].std(ddof=1)) if len(table) > 1 else 0.0 for c in metric_cols},
         "folds_below_majority_accuracy": int((table["accuracy"] < table["majority_accuracy"]).sum()),
         "pooled_confusion_matrix": pooled.tolist(),
-        "class_share": dict(zip(CLASS_NAMES, (pooled.sum(axis=1) / pooled.sum()).round(4).tolist())),
+        "class_share": dict(zip(class_names, (pooled.sum(axis=1) / pooled.sum()).round(4).tolist())),
     }
 
 
-def plot_confusion_matrix(pooled: np.ndarray, title: str, path: Path) -> None:
+def plot_confusion_matrix(pooled: np.ndarray, title: str, path: Path, class_names: list[str] = CLASS_NAMES) -> None:
     row_sums = pooled.sum(axis=1, keepdims=True)
     cm_norm = np.divide(pooled, row_sums, out=np.zeros(pooled.shape), where=row_sums > 0)
     fig, ax = plt.subplots(figsize=(6, 5))
     sns.heatmap(cm_norm, annot=True, fmt=".2f", cmap="Blues", vmin=0, vmax=1,
-                xticklabels=CLASS_NAMES, yticklabels=CLASS_NAMES, ax=ax)
+                xticklabels=class_names, yticklabels=class_names, ax=ax)
     ax.set(xlabel="Predicted", ylabel="True", title=title)
     fig.tight_layout()
     fig.savefig(path, dpi=300, bbox_inches="tight")
@@ -100,8 +121,12 @@ def report_run(results_dir: Path, out_dir: Path, label: str) -> tuple[pd.DataFra
     """Write per-subject CSV, summary JSON and confusion matrix for one run."""
     out_dir.mkdir(parents=True, exist_ok=True)
     folds = load_folds(results_dir)
-    table = per_subject_table(folds)
-    summary = {"label": label, "source": str(results_dir), **summarise(table, folds)}
+    class_names = fold_class_names(results_dir)
+    table = per_subject_table(folds, class_names)
+    summary = {
+        "label": label, "source": str(results_dir), "class_names": class_names,
+        **summarise(table, folds, class_names), "cost": fold_costs(results_dir),
+    }
 
     table.to_csv(out_dir / f"{label}_per_subject.csv", index=False)
     (out_dir / f"{label}_summary.json").write_text(json.dumps(summary, indent=2))
@@ -109,6 +134,7 @@ def report_run(results_dir: Path, out_dir: Path, label: str) -> tuple[pd.DataFra
         np.array(summary["pooled_confusion_matrix"]),
         f"{label} - confusion matrix (normalised)",
         out_dir / f"{label}_confusion_matrix.png",
+        class_names,
     )
 
     m, s = summary["mean"], summary["std"]
@@ -119,7 +145,12 @@ def report_run(results_dir: Path, out_dir: Path, label: str) -> tuple[pd.DataFra
           f"   (always-majority: {m['majority_f1_macro']:.4f})")
     print(f"  Balanced accuracy : {m['balanced_accuracy']:.4f}   Cohen's kappa: {m['kappa']:.4f}")
     print(f"  Folds below always-majority accuracy: {summary['folds_below_majority_accuracy']}/{summary['n_folds']}")
-    print("  Per-class F1      : " + ", ".join(f"{c}={m[f'f1_{c}']:.3f}" for c in CLASS_NAMES))
+    print("  Per-class F1      : " + ", ".join(f"{c}={m[f'f1_{c}']:.3f}" for c in class_names))
+    cost = summary["cost"]
+    if "seconds_per_epoch" in cost:
+        gpu = f", peak GPU {cost['peak_gpu_mb']:.0f} MB" if "peak_gpu_mb" in cost else ""
+        print(f"  Cost              : {cost['n_parameters']:,.0f} parameters, "
+              f"{cost['seconds_per_epoch']:.1f} s/epoch, {cost['epochs_run']:.1f} epochs{gpu}")
     return table, summary
 
 
@@ -165,7 +196,8 @@ def compare_runs(tables: dict[str, pd.DataFrame], out_dir: Path) -> dict:
     # Mean per-class F1
     long_cls = pd.DataFrame([
         {"class": c, "setting": label, "f1": t[f"f1_{c}"].mean()}
-        for label, t in tables.items() for c in CLASS_NAMES
+        for label, t in tables.items()
+        for c in [col[3:] for col in t.columns if col.startswith("f1_") and col != "f1_macro"]
     ])
     fig, ax = plt.subplots(figsize=(6, 4))
     sns.barplot(data=long_cls, x="class", y="f1", hue="setting", ax=ax)
