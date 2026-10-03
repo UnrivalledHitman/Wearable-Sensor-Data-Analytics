@@ -12,11 +12,13 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from pipeline.config import CLASS_NAMES, load_config
+from pipeline.config import CLASS_NAMES, CLEAN_CHANNELS, CleanPreprocessConfig, load_config
 from pipeline.model import build_model, count_parameters
 from pipeline.preprocess import preprocess_all, preprocessed_files
+from pipeline.preprocess_clean import resample_recording, window_subject_clean
 from pipeline.report import load_folds, metrics_from_cm, report
 from pipeline.train import run_loso
+from pipeline.wesad import pure_windows
 
 CODE_DIR = Path(__file__).resolve().parents[1]
 
@@ -155,6 +157,59 @@ class PipelineSmokeTest(unittest.TestCase):
         first = run_loso(cfg, device=torch.device("cpu"))
         second = run_loso(cfg, device=torch.device("cpu"))
         self.assertEqual([r["confusion_matrix"] for r in first], [r["confusion_matrix"] for r in second])
+
+        # Resuming after losing one fold retrains only that fold, with the same result.
+        (cfg.out_dir / "fold_S2.json").unlink()
+        stamp = (cfg.out_dir / "fold_S10.json").stat().st_mtime_ns
+        resumed = run_loso(cfg, device=torch.device("cpu"), resume=True)
+        self.assertEqual((cfg.out_dir / "fold_S10.json").stat().st_mtime_ns, stamp)
+        self.assertEqual([r["confusion_matrix"] for r in resumed], [r["confusion_matrix"] for r in first])
+
+
+class CleanPreprocessTest(unittest.TestCase):
+    """The corrected pipeline keeps only windows inside one condition."""
+
+    def setUp(self):
+        self.data = synthetic_subject(np.random.default_rng(1))
+
+    def test_only_condition_windows_survive(self):
+        cfg = CleanPreprocessConfig(target_rate=32, window_sec=10, stride_sec=10)
+        X, y = window_subject_clean(self.data, cfg)
+        self.assertEqual(X.shape[1:], (320, len(CLEAN_CHANNELS)))
+
+        # Non-overlapping 10 s windows: each condition yields floor(duration / 10)
+        # per block at most, and nothing comes from labels 0 or 5-7.
+        seconds = {1: 120, 2: 60, 3: 40, 4: 80}
+        counts = np.bincount(y, minlength=4)
+        for label, sec in seconds.items():
+            self.assertLessEqual(counts[label - 1], sec // 10)
+            self.assertGreaterEqual(counts[label - 1], sec // 10 - 2)
+        self.assertEqual(len(y), counts.sum())
+
+    def test_subject_normalisation_and_channel_subset(self):
+        cfg = CleanPreprocessConfig(target_rate=64, window_sec=10, stride_sec=5, channels=["ch_temp", "wr_bvp"])
+        signals, lab = resample_recording(self.data, cfg)
+        self.assertEqual(signals.shape[1], 2)
+        self.assertEqual(len(signals), len(lab))
+        self.assertAlmostEqual(len(signals) / 64, len(self.data["label"]) / 700, delta=1.0)
+        # Temperature sits near 34 before normalisation; resampling must not distort its level.
+        self.assertAlmostEqual(signals[:, 0].mean(), 34.0, delta=0.1)
+
+        X, _ = window_subject_clean(self.data, cfg)
+        self.assertLess(abs(X[..., 0].mean()), 1.0)  # standardised, no longer near 34
+
+    def test_pure_windows_reject_mixed_labels(self):
+        lab = np.array([0] * 10 + [1] * 30 + [5] * 5 + [2] * 20)
+        starts, labels = pure_windows(lab, rate=1, window_sec=10, stride_sec=5)
+        self.assertEqual(starts.tolist(), [10.0, 15.0, 20.0, 25.0, 30.0, 45.0, 50.0, 55.0])
+        self.assertEqual(labels.tolist(), [1, 1, 1, 1, 1, 2, 2, 2])
+        # A lower purity threshold admits the three windows that are half one condition.
+        starts50, _ = pure_windows(lab, rate=1, window_sec=10, stride_sec=5, min_purity=0.5)
+        self.assertEqual(len(starts50), len(starts) + 3)
+
+    def test_unknown_channel_is_rejected(self):
+        with self.assertRaises(ValueError):
+            CleanPreprocessConfig(target_rate=32, window_sec=10, stride_sec=5, channels=["ch_bvp"])
 
 
 class PaperNumbersTest(unittest.TestCase):

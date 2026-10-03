@@ -198,18 +198,43 @@ def write_run_manifest(cfg: RunConfig, device: torch.device) -> None:
     (cfg.out_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2))
 
 
-def run_loso(cfg: RunConfig, device: torch.device | None = None) -> list[dict]:
-    """Train and test one model per held-out subject; write ``fold_<subject>.json``."""
+def _can_resume(cfg: RunConfig) -> bool:
+    """Finished folds are only reusable if they were made with this exact config."""
+    manifest_path = cfg.out_dir / "run_manifest.json"
+    if not manifest_path.exists():
+        return False
+    return json.loads(manifest_path.read_text())["config"] == cfg.to_dict()
+
+
+def run_loso(cfg: RunConfig, device: torch.device | None = None, resume: bool = False,
+             max_minutes: float | None = None) -> list[dict]:
+    """Train and test one model per held-out subject; write ``fold_<subject>.json``.
+
+    With ``resume``, folds that already have a result file from the same config
+    are kept instead of retrained. Folds are seeded independently, so a resumed
+    run gives the same results as an uninterrupted one. With ``max_minutes``,
+    no new fold is started after that time, and fewer results than subjects
+    are returned; run again with ``resume`` to do the rest.
+    """
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
     files = preprocessed_files(cfg)
 
     ckpt_dir = cfg.out_dir / "checkpoints"
     ckpt_dir.mkdir(parents=True, exist_ok=True)
+    resume = resume and _can_resume(cfg)
     write_run_manifest(cfg, device)
 
-    results = []
+    results, started = [], time.perf_counter()
     for fold_idx, test_file in enumerate(files):
         test_subj = subject_of(test_file)
+        fold_path = cfg.out_dir / f"fold_{test_subj}.json"
+        if resume and fold_path.exists():
+            results.append(json.loads(fold_path.read_text()))
+            print(f"[{cfg.name}] FOLD {fold_idx + 1}/{len(files)} - test subject {test_subj}: already done, skipping")
+            continue
+        if max_minutes is not None and time.perf_counter() - started > max_minutes * 60:
+            print(f"[{cfg.name}] Time budget reached before fold {fold_idx + 1}/{len(files)}; rerun with --resume.")
+            break
         print("\n" + "=" * 80)
         print(f"[{cfg.name}] FOLD {fold_idx + 1}/{len(files)} - test subject {test_subj}")
         print("=" * 80)
@@ -252,7 +277,7 @@ def run_loso(cfg: RunConfig, device: torch.device | None = None) -> list[dict]:
             "n_parameters": n_params,
             "seed": fold_seed,
         }
-        (cfg.out_dir / f"fold_{test_subj}.json").write_text(json.dumps(result, indent=2))
+        fold_path.write_text(json.dumps(result, indent=2))
         results.append(result)
         print(f"[{test_subj}] TEST | acc={result['accuracy']:.4f} | f1_macro={result['f1_macro']:.4f}")
 

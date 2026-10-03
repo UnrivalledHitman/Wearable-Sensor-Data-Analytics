@@ -7,7 +7,7 @@ run was produced with can never drift from the settings written in the paper.
 from __future__ import annotations
 
 import tomllib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 # Relative paths in a config file are resolved against the Code/ directory.
@@ -24,6 +24,12 @@ CHANNEL_NAMES = [
     "ch_ecg", "ch_resp", "ch_acc_mag", "ch_eda", "ch_temp",
 ]
 
+# Channels the clean pipeline can produce; a config may select a subset.
+CLEAN_CHANNELS = [
+    "ch_ecg", "ch_eda", "ch_emg", "ch_resp", "ch_temp", "ch_acc_x", "ch_acc_y", "ch_acc_z",
+    "wr_bvp", "wr_eda", "wr_temp", "wr_acc_x", "wr_acc_y", "wr_acc_z",
+]
+
 BALANCING_MODES = ("none", "weighted_loss", "weighted_sampler")
 LR_SCHEDULERS = ("none", "plateau")
 
@@ -35,6 +41,24 @@ class PreprocessConfig:
     overlap: float
     majority_threshold: float
     chest_rate: int = 700
+
+
+@dataclass(frozen=True)
+class CleanPreprocessConfig:
+    """Settings for the corrected pipeline (``mode = "clean"`` in the config)."""
+
+    target_rate: int
+    window_sec: int
+    stride_sec: float
+    min_label_purity: float = 1.0
+    subject_normalisation: bool = True
+    channels: list[str] = field(default_factory=lambda: list(CLEAN_CHANNELS))
+    mode: str = "clean"
+
+    def __post_init__(self):
+        unknown = [c for c in self.channels if c not in CLEAN_CHANNELS]
+        if unknown:
+            raise ValueError(f"Unknown preprocess.channels {unknown}; choose from {CLEAN_CHANNELS}")
 
 
 @dataclass(frozen=True)
@@ -73,7 +97,7 @@ class RunConfig:
     raw_dir: Path
     data_dir: Path
     out_dir: Path
-    preprocess: PreprocessConfig
+    preprocess: PreprocessConfig | CleanPreprocessConfig
     model: ModelConfig
     train: TrainConfig
 
@@ -94,13 +118,17 @@ def load_config(path: str | Path) -> RunConfig:
         raw = tomllib.load(fh)
 
     run, paths = raw["run"], raw["paths"]
+    pre = dict(raw["preprocess"])
+    mode = pre.pop("mode", "legacy")
+    if mode not in ("legacy", "clean"):
+        raise ValueError(f"preprocess.mode must be 'legacy' or 'clean', got {mode!r}")
     return RunConfig(
         name=run["name"],
         seed=int(run["seed"]),
         raw_dir=_resolve(paths["raw_dir"]),
         data_dir=_resolve(paths["data_dir"]),
         out_dir=_resolve(paths["out_dir"]),
-        preprocess=PreprocessConfig(**raw["preprocess"]),
+        preprocess=CleanPreprocessConfig(**pre) if mode == "clean" else PreprocessConfig(**pre),
         model=ModelConfig(**raw["model"]),
         train=TrainConfig(**raw["train"]),
     )

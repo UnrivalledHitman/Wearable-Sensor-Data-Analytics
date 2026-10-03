@@ -3,6 +3,9 @@
 Train and report (one or more configs; several configs are also compared):
     python Code/run_pipeline.py run --config Code/configs/legacy_weighted_loss.toml Code/configs/legacy_weighted_sampler.toml
 
+Classical reference baselines (resumable):
+    python Code/run_pipeline.py baselines --config Code/configs/baselines.toml
+
 Rebuild tables and figures from existing fold results (no dataset needed):
     python Code/run_pipeline.py report --results weighted_loss=Code/results_training_hybrid weighted_sampler=Code/results_evaluation --out Code/runs/paper_committed
 """
@@ -35,7 +38,9 @@ def cmd_run(args) -> None:
         if "preprocess" in args.stages:
             preprocess_all(cfg, force=args.force_preprocess)
         if "train" in args.stages:
-            run_loso(cfg, device=device)
+            results = run_loso(cfg, device=device, resume=args.resume, max_minutes=args.max_minutes)
+            if len(results) < len(list(cfg.data_dir.glob("*_combined.npz"))):
+                return  # stopped by the time budget; nothing complete to report yet
         if "report" in args.stages:
             report({cfg.name: cfg.out_dir}, cfg.out_dir / "report")
 
@@ -55,6 +60,18 @@ def cmd_report(args) -> None:
     report(results, Path(args.out))
 
 
+def cmd_baselines(args) -> None:
+    from pipeline.baselines import evaluate, load_baseline_config, print_best
+
+    for path in args.config:
+        cfg = load_baseline_config(path)
+        cfg.out_dir.mkdir(parents=True, exist_ok=True)
+        summary = evaluate(cfg, n_jobs=args.jobs, max_minutes=args.max_minutes)
+        print(f"\n[{cfg.name}] best classifier per setting (LOSO mean accuracy):")
+        print_best(summary)
+        print(f"\nSummary written to {cfg.out_dir / 'summary.csv'}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -64,12 +81,22 @@ def main() -> None:
     run.add_argument("--stages", nargs="+", choices=STAGES, default=list(STAGES))
     run.add_argument("--device", default=None, help="e.g. cuda or cpu (default: cuda if available)")
     run.add_argument("--force-preprocess", action="store_true", help="redo preprocessing even if up to date")
+    run.add_argument("--resume", action="store_true", help="keep folds already finished with the same config")
+    run.add_argument("--max-minutes", type=float, default=None,
+                     help="start no new fold after this long; rerun with --resume to continue")
     run.set_defaults(func=cmd_run)
 
     rep = sub.add_parser("report", help="tables and figures from existing fold result files")
     rep.add_argument("--results", nargs="+", required=True, metavar="LABEL=DIR")
     rep.add_argument("--out", required=True)
     rep.set_defaults(func=cmd_report)
+
+    base = sub.add_parser("baselines", help="hand-crafted features + classical classifiers under LOSO")
+    base.add_argument("--config", nargs="+", required=True, help="one or more baseline TOML config files")
+    base.add_argument("--jobs", type=int, default=-1, help="parallel workers (default: all cores)")
+    base.add_argument("--max-minutes", type=float, default=None,
+                      help="start no new combination after this long; rerun to continue")
+    base.set_defaults(func=cmd_baselines)
 
     args = parser.parse_args()
     args.func(args)

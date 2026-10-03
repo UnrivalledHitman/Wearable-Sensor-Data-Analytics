@@ -1,8 +1,9 @@
-"""Legacy preprocessing: raw WESAD pickles -> windowed ``S*_combined.npz``.
+"""Preprocessing: raw WESAD pickles -> windowed ``S*_combined.npz``.
 
-This is a faithful port of the notebook that produced the results in the
-current paper draft. It deliberately keeps that pipeline's known defects so
-the published numbers can be regenerated; milestone M1 replaces it.
+Two pipelines share this entry point. ``mode = "clean"`` (preprocess_clean.py)
+is the corrected one. The legacy one below is a faithful port of the notebook
+that produced the results in the current paper draft. It deliberately keeps
+that pipeline's known defects so the published numbers can be regenerated.
 
 Known defects kept here on purpose:
   * WESAD labels 0 and 5-7 are mapped to class 0, so "baseline" is mostly
@@ -16,14 +17,15 @@ Known defects kept here on purpose:
 from __future__ import annotations
 
 import json
-import pickle
 from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
 
-from .config import CHANNEL_NAMES, CLASS_NAMES, LABEL_MAP, PreprocessConfig, RunConfig
+from .config import CHANNEL_NAMES, CLASS_NAMES, LABEL_MAP, CleanPreprocessConfig, PreprocessConfig, RunConfig
+from .preprocess_clean import window_subject_clean
+from .wesad import load_subject, subject_files
 
 MANIFEST_NAME = "manifest.json"
 
@@ -122,21 +124,16 @@ def preprocess_all(cfg: RunConfig, force: bool = False) -> Path:
             print(f"Preprocessed data up to date: {cfg.data_dir}")
             return manifest_path
 
-    pkl_files = sorted(cfg.raw_dir.glob("S*.pkl")) + sorted(cfg.raw_dir.glob("S*/S*.pkl"))
-    if not pkl_files:
-        raise FileNotFoundError(
-            f"No WESAD subject pickles (S*.pkl) found in {cfg.raw_dir}. "
-            "Download WESAD and place it there, or set paths.raw_dir in the config."
-        )
+    pkl_files = subject_files(cfg.raw_dir)
+    clean = isinstance(cfg.preprocess, CleanPreprocessConfig)
 
     cfg.data_dir.mkdir(parents=True, exist_ok=True)
     subjects = {}
     for pkl_path in pkl_files:
         subject = pkl_path.stem
-        with open(pkl_path, "rb") as fh:
-            data = pickle.load(fh, encoding="latin1")
+        data = load_subject(pkl_path)
         raw_counts = Counter(np.asarray(data["label"]).astype(int).tolist())
-        X, y = window_subject(data, cfg.preprocess)
+        X, y = (window_subject_clean if clean else window_subject)(data, cfg.preprocess)
         np.savez_compressed(cfg.data_dir / f"{subject}_combined.npz", X=X, y=y)
 
         counts = np.bincount(y, minlength=len(CLASS_NAMES)).tolist()

@@ -1,0 +1,36 @@
+# Corrected data pipeline (M1) with the unchanged model and training recipe of
+# legacy_weighted_sampler.toml, so the two runs differ only in the data.
+
+[run]
+name = "clean_w10_weighted_sampler"
+seed = 42
+
+[paths]  # relative to Code/
+raw_dir = "WESAD"
+data_dir = "data_clean_w10_r32"
+out_dir = "runs/clean_w10_weighted_sampler"
+
+[preprocess]
+mode = "clean"
+target_rate = 32
+window_sec = 10
+stride_sec = 5
+min_label_purity = 1.0        # windows must lie fully inside one condition
+subject_normalisation = true  # z-score per subject over the whole recording, no labels used
+
+[model]
+cnn_channels = 64
+gru_hidden = 128
+gru_layers = 2
+attn_heads = 4
+dropout = 0.3
+
+[train]
+balancing = "weighted_sampler"
+batch_size = 128
+epochs = 25
+lr = 1e-3
+patience = 6
+grad_clip = 5.0
+val_fraction = 0.1
+lr_scheduler = "none"

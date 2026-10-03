@@ -1,0 +1,22 @@
+# Window-length ablation with the classical baselines: 10, 30 and 60 s windows.
+# Reduced grid; the 60 s results are shared with baselines.toml through the feature cache.
+
+[run]
+name = "baselines_window_ablation"
+seed = 42
+
+[paths]  # relative to Code/
+raw_dir = "WESAD"
+features_dir = "features"
+out_dir = "runs/baselines_window_ablation"
+
+[windows]
+window_sec = [10, 30, 60]
+stride_sec = 5
+min_label_purity = 1.0
+
+[eval]
+tasks = ["binary", "three_class", "four_class"]
+feature_sets = ["chest_physio", "wrist_physio"]
+classifiers = ["RF", "LDA"]
+subject_normalisation = [false, true]

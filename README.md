@@ -44,6 +44,22 @@ dataset or GPU needed:
 python Code/run_pipeline.py report --results weighted_loss=Code/results_training_hybrid weighted_sampler=Code/results_evaluation --out Code/runs/paper_committed
 ```
 
+Corrected data pipeline with the unchanged model (about 10 minutes on a laptop GPU):
+
+```bash
+python Code/run_pipeline.py run --config Code/configs/clean_w10_weighted_sampler.toml --resume
+```
+
+Classical reference baselines and the window-length ablation (CPU, about 40 minutes):
+
+```bash
+python Code/run_pipeline.py baselines --config Code/configs/baselines.toml Code/configs/baselines_window_ablation.toml
+```
+
+Long runs can be interrupted and continued: `run --resume` keeps finished
+folds, `baselines` keeps finished combinations, and `--max-minutes N` stops
+either one cleanly after N minutes.
+
 Run the tests:
 
 ```bash
@@ -57,6 +73,11 @@ python -m unittest discover -s Code/tests -t Code
 | `legacy_weighted_loss.toml` | The run the draft calls "baseline": class-weighted cross-entropy |
 | `legacy_weighted_sampler.toml` | The run the draft calls "balanced": weighted random sampling |
 | `legacy_no_balancing.toml` | The unbalanced control the draft describes but never ran |
+| `clean_w10_weighted_sampler.toml` | Corrected data pipeline, same model and training as `legacy_weighted_sampler` |
+| `baselines.toml` | Hand-crafted features with DT, RF, AdaBoost, LDA and kNN on binary, three- and four-class tasks |
+| `baselines_window_ablation.toml` | The same baselines at 10, 30 and 60 s windows |
+
+Results so far are summarised in [docs/M1_M2_results.md](docs/M1_M2_results.md).
 
 The `legacy_*` configs reproduce the December 2025 experiments exactly as they
 were run, including their known defects (listed at the top of

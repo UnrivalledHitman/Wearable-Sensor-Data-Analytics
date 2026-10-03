@@ -1,0 +1,40 @@
+{
+  "config": {
+    "name": "legacy_weighted_loss",
+    "seed": 42,
+    "raw_dir": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\WESAD",
+    "data_dir": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\data_preprocessed",
+    "out_dir": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\runs\\legacy_weighted_loss",
+    "preprocess": {
+      "target_rate": 32,
+      "window_sec": 10,
+      "overlap": 0.5,
+      "majority_threshold": 0.6,
+      "chest_rate": 700
+    },
+    "model": {
+      "cnn_channels": 64,
+      "gru_hidden": 128,
+      "gru_layers": 2,
+      "attn_heads": 2,
+      "dropout": 0.3
+    },
+    "train": {
+      "balancing": "weighted_loss",
+      "batch_size": 32,
+      "epochs": 25,
+      "lr": 0.001,
+      "patience": 6,
+      "grad_clip": 5.0,
+      "val_fraction": 0.1,
+      "lr_scheduler": "plateau",
+      "min_delta": 1e-06,
+      "test_batch_size": 16
+    }
+  },
+  "git_commit": "09e40e6348d31197dd1a797b1912b0a95ea12f38",
+  "python": "3.13.14",
+  "torch": "2.13.0+cu132",
+  "numpy": "2.4.4",
+  "device": "NVIDIA GeForce RTX 4060 Laptop GPU"
+}

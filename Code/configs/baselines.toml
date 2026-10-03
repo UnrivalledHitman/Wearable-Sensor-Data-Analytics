@@ -1,0 +1,22 @@
+# Reference baselines (M2): hand-crafted features + classical classifiers, LOSO.
+# Window length and classifier settings follow the WESAD dataset paper.
+
+[run]
+name = "baselines"
+seed = 42
+
+[paths]  # relative to Code/
+raw_dir = "WESAD"
+features_dir = "features"
+out_dir = "runs/baselines"
+
+[windows]
+window_sec = [60]
+stride_sec = 5
+min_label_purity = 1.0
+
+[eval]
+tasks = ["binary", "three_class", "four_class"]
+feature_sets = ["chest_physio", "chest_all", "wrist_physio", "wrist_all", "all_physio", "all"]
+classifiers = ["DT", "RF", "AB", "LDA", "kNN"]
+subject_normalisation = [false, true]
