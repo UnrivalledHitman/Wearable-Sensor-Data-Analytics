@@ -13,6 +13,7 @@ Rebuild tables and figures from existing fold results (no dataset needed):
 from __future__ import annotations
 
 import argparse
+import glob
 import hashlib
 import time
 from pathlib import Path
@@ -20,6 +21,17 @@ from pathlib import Path
 from pipeline.config import CODE_DIR, load_config
 
 STAGES = ("preprocess", "train", "report")
+
+
+def expand_globs(patterns: list[str]) -> list[str]:
+    """Expand wildcards here, since PowerShell passes them to programs unexpanded."""
+    paths = []
+    for pattern in patterns:
+        matches = sorted(glob.glob(pattern)) if glob.has_magic(pattern) else [pattern]
+        if not matches:
+            raise SystemExit(f"No config files match {pattern!r}")
+        paths.extend(matches)
+    return paths
 
 
 def cmd_run(args) -> None:
@@ -30,7 +42,7 @@ def cmd_run(args) -> None:
     from pipeline.train import run_loso
 
     device = torch.device(args.device) if args.device else None
-    configs = [load_config(path) for path in args.config]
+    configs = [load_config(path) for path in expand_globs(args.config)]
     if args.seeds:
         configs = [cfg.with_seed(seed) for cfg in configs for seed in args.seeds]
     names = [cfg.name for cfg in configs]
@@ -73,7 +85,7 @@ def cmd_report(args) -> None:
 def cmd_baselines(args) -> None:
     from pipeline.baselines import evaluate, load_baseline_config, print_best
 
-    for path in args.config:
+    for path in expand_globs(args.config):
         cfg = load_baseline_config(path)
         cfg.out_dir.mkdir(parents=True, exist_ok=True)
         summary = evaluate(cfg, n_jobs=args.jobs, max_minutes=args.max_minutes)
