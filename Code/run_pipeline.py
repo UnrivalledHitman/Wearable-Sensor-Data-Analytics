@@ -94,6 +94,12 @@ def cmd_baselines(args) -> None:
         print(f"\nSummary written to {cfg.out_dir / 'summary.csv'}")
 
 
+def cmd_seeds(args) -> None:
+    from pipeline.seeds import summarise_seeds
+
+    summarise_seeds(Path(args.runs), Path(args.out))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -121,6 +127,11 @@ def main() -> None:
     base.add_argument("--max-minutes", type=float, default=None,
                       help="start no new combination after this long; rerun to continue")
     base.set_defaults(func=cmd_baselines)
+
+    seeds = sub.add_parser("seeds", help="summarise runs repeated over seeds (<name>_seed<N> folders)")
+    seeds.add_argument("--runs", required=True, help="folder holding the seeded run folders")
+    seeds.add_argument("--out", required=True, help="CSV file to write")
+    seeds.set_defaults(func=cmd_seeds)
 
     args = parser.parse_args()
     args.func(args)

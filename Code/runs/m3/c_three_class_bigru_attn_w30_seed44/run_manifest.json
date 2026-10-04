@@ -1,0 +1,77 @@
+{
+  "config": {
+    "name": "c_three_class_bigru_attn_w30_seed44",
+    "seed": 44,
+    "raw_dir": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\WESAD",
+    "data_dir": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\data_clean_w30_s5_r32",
+    "out_dir": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\runs\\m3\\c_three_class_bigru_attn_w30_seed44",
+    "preprocess": {
+      "target_rate": 32,
+      "window_sec": 30,
+      "stride_sec": 5,
+      "min_label_purity": 1.0,
+      "subject_normalisation": true,
+      "channels": [
+        "ch_ecg",
+        "ch_eda",
+        "ch_emg",
+        "ch_resp",
+        "ch_temp",
+        "ch_acc_x",
+        "ch_acc_y",
+        "ch_acc_z",
+        "wr_bvp",
+        "wr_eda",
+        "wr_temp",
+        "wr_acc_x",
+        "wr_acc_y",
+        "wr_acc_z"
+      ],
+      "mode": "clean"
+    },
+    "model": {
+      "conv_channels": [
+        64,
+        64,
+        64,
+        64
+      ],
+      "downsample": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "kernel_size": 5,
+      "separable": false,
+      "rnn": "gru",
+      "bidirectional": true,
+      "rnn_hidden": 128,
+      "rnn_layers": 2,
+      "attention": true,
+      "attn_heads": 4,
+      "dropout": 0.3,
+      "arch": "seq"
+    },
+    "train": {
+      "balancing": "weighted_sampler",
+      "batch_size": 128,
+      "epochs": 40,
+      "lr": 0.001,
+      "patience": 8,
+      "grad_clip": 5.0,
+      "val_fraction": 0.1,
+      "lr_scheduler": "plateau",
+      "min_delta": 0.0,
+      "test_batch_size": null,
+      "task": "three_class",
+      "validation": "subjects",
+      "val_subjects": 2
+    }
+  },
+  "git_commit": "5c902e514dd8dad2e3109b283140d3bacf731d1c",
+  "python": "3.13.14",
+  "torch": "2.13.0+cu132",
+  "numpy": "2.4.4",
+  "device": "NVIDIA GeForce RTX 4060 Laptop GPU"
+}
