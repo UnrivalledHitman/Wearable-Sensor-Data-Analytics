@@ -1,0 +1,26 @@
+# M5 part 2: per-user calibration, classical baselines on WESAD.
+# Rest normalisation (the deployable variant that did best in part 1); the
+# first 1, 2 or 4 minutes of each condition of the test subject are added to
+# training with weight 10, and the rest of the recording is the test set.
+
+[run]
+name = "m5_baselines_calibration"
+seed = 42
+
+[paths]  # relative to Code/
+raw_dir = "WESAD"
+features_dir = "features"
+out_dir = "runs/m5/baselines_calibration"
+
+[windows]
+window_sec = [60]
+stride_sec = 5
+min_label_purity = 1.0
+
+[eval]
+tasks = ["binary", "four_class"]
+feature_sets = ["chest_physio", "wrist_physio", "all_physio"]
+classifiers = ["RF", "AB", "LDA"]
+normalisation = ["rest_minutes:5"]
+calibration_minutes = [1, 2, 4]
+calibration_weight = 10.0

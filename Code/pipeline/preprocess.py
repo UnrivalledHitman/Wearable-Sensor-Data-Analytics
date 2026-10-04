@@ -23,9 +23,11 @@ from pathlib import Path
 
 import numpy as np
 
-from .config import CHANNEL_NAMES, CLASS_NAMES, LABEL_MAP, CleanPreprocessConfig, PreprocessConfig, RunConfig
+from . import datasets
+from .config import (
+    CHANNEL_NAMES, CLASS_NAMES, LABEL_MAP, CleanPreprocessConfig, PreprocessConfig, RunConfig, upgrade_saved_config,
+)
 from .preprocess_clean import window_subject_clean
-from .wesad import load_subject, subject_files
 
 MANIFEST_NAME = "manifest.json"
 
@@ -120,21 +122,27 @@ def preprocess_all(cfg: RunConfig, force: bool = False) -> Path:
     settings = asdict(cfg.preprocess)
 
     if not force and manifest_path.exists():
-        if json.loads(manifest_path.read_text())["settings"] == settings:
+        if upgrade_saved_config(json.loads(manifest_path.read_text())["settings"]) == settings:
             print(f"Preprocessed data up to date: {cfg.data_dir}")
             return manifest_path
 
-    pkl_files = subject_files(cfg.raw_dir)
     clean = isinstance(cfg.preprocess, CleanPreprocessConfig)
+    dataset = cfg.preprocess.dataset if clean else "wesad"
+    pkl_files = datasets.subject_files(dataset, cfg.raw_dir)
 
     cfg.data_dir.mkdir(parents=True, exist_ok=True)
     subjects = {}
     for pkl_path in pkl_files:
-        subject = pkl_path.stem
-        data = load_subject(pkl_path)
+        subject = datasets.subject_name(pkl_path)
+        data = datasets.load_subject(dataset, pkl_path, clean and cfg.preprocess.exclude_hyperventilation)
         raw_counts = Counter(np.asarray(data["label"]).astype(int).tolist())
-        X, y = (window_subject_clean if clean else window_subject)(data, cfg.preprocess)
-        np.savez_compressed(cfg.data_dir / f"{subject}_combined.npz", X=X, y=y)
+        if clean:
+            X, y, starts = window_subject_clean(data, cfg.preprocess)
+            # Window start times (s) let calibration split a subject's recording in time.
+            np.savez_compressed(cfg.data_dir / f"{subject}_combined.npz", X=X, y=y, starts=starts)
+        else:
+            X, y = window_subject(data, cfg.preprocess)
+            np.savez_compressed(cfg.data_dir / f"{subject}_combined.npz", X=X, y=y)
 
         counts = np.bincount(y, minlength=len(CLASS_NAMES)).tolist()
         subjects[subject] = {
@@ -158,7 +166,7 @@ def preprocessed_files(cfg: RunConfig) -> list[Path]:
     manifest_path = cfg.data_dir / MANIFEST_NAME
     settings = asdict(cfg.preprocess)
     if manifest_path.exists():
-        found = json.loads(manifest_path.read_text())["settings"]
+        found = upgrade_saved_config(json.loads(manifest_path.read_text())["settings"])
         if found != settings:
             raise ValueError(
                 f"{cfg.data_dir} was preprocessed with {found}, but this config asks for {settings}. "

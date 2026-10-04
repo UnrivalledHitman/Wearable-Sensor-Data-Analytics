@@ -98,7 +98,7 @@ class BaselinePipelineTest(unittest.TestCase):
                 name="t", seed=0, raw_dir=root / "WESAD", features_dir=root / "features", out_dir=root / "out",
                 window_sec=[10], stride_sec=5, min_label_purity=1.0,
                 tasks=["binary", "four_class"], feature_sets=["chest_physio"], classifiers=["DT", "LDA"],
-                subject_normalisation=[False, True],
+                normalisation=["none", "recording"],
             )
             cfg.out_dir.mkdir()
             self.assertEqual(len(evaluate(cfg, n_jobs=1, max_minutes=0)), 0)  # budget spent: nothing starts

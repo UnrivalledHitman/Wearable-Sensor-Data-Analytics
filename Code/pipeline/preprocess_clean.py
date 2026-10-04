@@ -18,7 +18,7 @@ import numpy as np
 from scipy.signal import resample_poly
 
 from .config import LABEL_MAP, CleanPreprocessConfig
-from .wesad import CHEST_RATE, WRIST_RATES, chest, labels, pure_windows, wrist
+from .wesad import CHEST_RATE, LABEL_BASELINE, WRIST_RATES, chest, labels, pure_windows, wrist
 
 # channel name -> (loader, signal key, source rate, axis or None)
 _SOURCES = {
@@ -63,7 +63,9 @@ def resample_recording(data: dict, cfg: CleanPreprocessConfig) -> tuple[np.ndarr
     lab = labels(data)
     lengths = [len(c) for c in channels]
     expected = len(lab) * cfg.target_rate / CHEST_RATE
-    if max(abs(n - expected) for n in lengths) > cfg.target_rate:
+    # Streams share a start time but the Empatica E4 stops each one a second or
+    # two apart, so the ends are trimmed; a larger mismatch means misaligned data.
+    if max(abs(n - expected) for n in lengths) > 5 * cfg.target_rate:
         raise ValueError(f"Resampled channel lengths {lengths} disagree with the label track ({expected:.0f}).")
 
     n = min(min(lengths), int(expected))
@@ -72,12 +74,34 @@ def resample_recording(data: dict, cfg: CleanPreprocessConfig) -> tuple[np.ndarr
     return signals, lab_at_rate
 
 
-def window_subject_clean(data: dict, cfg: CleanPreprocessConfig) -> tuple[np.ndarray, np.ndarray]:
-    """Turn one subject's raw WESAD dict into (windows, class indices)."""
+def normalisation_reference(signals: np.ndarray, lab: np.ndarray, cfg: CleanPreprocessConfig) -> np.ndarray:
+    """The samples a subject's normalisation statistics are computed from.
+
+    Only "recording" needs the whole recording in advance. "first_minutes"
+    uses what a device sees in its first minutes of wear; "rest_minutes" uses
+    a short rest at the start of the first rest/baseline block, as a
+    calibration step would. Neither uses condition labels beyond that.
+    """
+    n = int(cfg.normalisation_minutes * 60 * cfg.target_rate)
+    if cfg.normalisation_source == "first_minutes":
+        return signals[:n]
+    if cfg.normalisation_source == "rest_minutes":
+        rest = np.flatnonzero(lab == LABEL_BASELINE)
+        if not len(rest):
+            raise ValueError("rest_minutes normalisation needs a rest/baseline block in the recording")
+        start = rest[0]
+        end = start + np.argmax(np.r_[lab[start:] != LABEL_BASELINE, True])  # end of that first block
+        return signals[start:min(end, start + n)]
+    return signals
+
+
+def window_subject_clean(data: dict, cfg: CleanPreprocessConfig) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Turn one subject's raw dict into (windows, class indices, window start times in s)."""
     signals, lab = resample_recording(data, cfg)
 
     if cfg.subject_normalisation:
-        mean, std = signals.mean(axis=0), signals.std(axis=0)
+        ref = normalisation_reference(signals, lab, cfg)
+        mean, std = ref.mean(axis=0), ref.std(axis=0)
         signals = (signals - mean) / np.maximum(std, 1e-8)
 
     starts, window_labels = pure_windows(lab, cfg.target_rate, cfg.window_sec, cfg.stride_sec, cfg.min_label_purity)
@@ -87,4 +111,4 @@ def window_subject_clean(data: dict, cfg: CleanPreprocessConfig) -> tuple[np.nda
     X = np.stack([signals[i:i + win] for i in idx]).astype(np.float32) if len(idx) else \
         np.zeros((0, win, len(cfg.channels)), dtype=np.float32)
     y = np.array([LABEL_MAP[int(l)] for l in window_labels], dtype=np.int64)
-    return X, y
+    return X, y, starts

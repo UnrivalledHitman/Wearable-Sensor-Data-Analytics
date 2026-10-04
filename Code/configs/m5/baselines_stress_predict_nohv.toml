@@ -1,0 +1,28 @@
+# M5 part 4: Stress-Predict, leave-one-subject-out over 34 participants,
+# wrist features, binary stress detection; hyperventilation excluded.
+
+[run]
+name = "m5_baselines_stress_predict_nohv"
+seed = 42
+
+[paths]  # relative to Code/
+raw_dir = "Stress-Predict"
+features_dir = "features"
+out_dir = "runs/m5/baselines_stress_predict_nohv"
+
+[windows]
+window_sec = [60]
+stride_sec = 5
+min_label_purity = 1.0
+
+[data]
+dataset = "stress_predict"
+exclude_hyperventilation = true
+
+[eval]
+tasks = ["binary"]
+feature_sets = ["wrist_physio", "wrist_all"]
+classifiers = ["DT", "RF", "AB", "LDA", "kNN"]
+normalisation = ["none", "rest_minutes:5", "recording"]
+calibration_minutes = [1, 2, 4]
+calibration_weight = 10.0

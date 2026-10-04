@@ -174,7 +174,7 @@ class CleanPreprocessTest(unittest.TestCase):
 
     def test_only_condition_windows_survive(self):
         cfg = CleanPreprocessConfig(target_rate=32, window_sec=10, stride_sec=10)
-        X, y = window_subject_clean(self.data, cfg)
+        X, y, _ = window_subject_clean(self.data, cfg)
         self.assertEqual(X.shape[1:], (320, len(CLEAN_CHANNELS)))
 
         # Non-overlapping 10 s windows: each condition yields floor(duration / 10)
@@ -195,7 +195,7 @@ class CleanPreprocessTest(unittest.TestCase):
         # Temperature sits near 34 before normalisation; resampling must not distort its level.
         self.assertAlmostEqual(signals[:, 0].mean(), 34.0, delta=0.1)
 
-        X, _ = window_subject_clean(self.data, cfg)
+        X, _, _ = window_subject_clean(self.data, cfg)
         self.assertLess(abs(X[..., 0].mean()), 1.0)  # standardised, no longer near 34
 
     def test_pure_windows_reject_mixed_labels(self):

@@ -94,6 +94,30 @@ def cmd_baselines(args) -> None:
         print(f"\nSummary written to {cfg.out_dir / 'summary.csv'}")
 
 
+def cmd_cross(args) -> None:
+    import torch
+
+    from pipeline.config import load_cross_config
+    from pipeline.preprocess import preprocess_all
+    from pipeline.report import report
+    from pipeline.train import run_cross_dataset
+
+    device = torch.device(args.device) if args.device else None
+    runs = [load_cross_config(path) for path in expand_globs(args.config)]
+    if args.seeds:
+        runs = [(train.with_seed(seed), test) for train, test in runs for seed in args.seeds]
+
+    deadline = None if args.max_minutes is None else time.perf_counter() + args.max_minutes * 60
+    for train, test in runs:
+        preprocess_all(train)
+        preprocess_all(test)
+        remaining = None if deadline is None else max(0.0, (deadline - time.perf_counter()) / 60)
+        if not run_cross_dataset(train, test, train.out_dir, device=device, resume=args.resume,
+                                 max_minutes=remaining):
+            return  # stopped by the time budget
+        report({train.name: train.out_dir}, train.out_dir / "report")
+
+
 def cmd_seeds(args) -> None:
     from pipeline.seeds import summarise_seeds
 
@@ -127,6 +151,14 @@ def main() -> None:
     base.add_argument("--max-minutes", type=float, default=None,
                       help="start no new combination after this long; rerun to continue")
     base.set_defaults(func=cmd_baselines)
+
+    cross = sub.add_parser("cross", help="train on one dataset, test on every subject of another")
+    cross.add_argument("--config", nargs="+", required=True, help="one or more cross-dataset TOML files")
+    cross.add_argument("--seeds", type=int, nargs="+", default=None)
+    cross.add_argument("--device", default=None)
+    cross.add_argument("--resume", action="store_true")
+    cross.add_argument("--max-minutes", type=float, default=None)
+    cross.set_defaults(func=cmd_cross)
 
     seeds = sub.add_parser("seeds", help="summarise runs repeated over seeds (<name>_seed<N> folders)")
     seeds.add_argument("--runs", required=True, help="folder holding the seeded run folders")

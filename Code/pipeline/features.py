@@ -282,17 +282,22 @@ def window_grid(lab: np.ndarray, window_sec: float, stride_sec: float, min_purit
 
 def subject_features(data: dict, subject: str, window_sec: float, stride_sec: float,
                      min_purity: float = 1.0) -> pd.DataFrame:
-    """One row per window of the recording: subject, label, start_sec, then features."""
-    ecg_ibi = beat_intervals(detect_r_peaks(chest(data, "ECG")))
-    bvp_ibi = beat_intervals(detect_pulse_peaks(wrist(data, "BVP")))
+    """One row per window of the recording: subject, label, start_sec, then features.
 
-    chest_eda = _Eda(to_rate(_filter(chest(data, "EDA"), CHEST_RATE, high=5.0), CHEST_RATE, 16), 16)
+    Chest features are computed only when the recording has a chest device
+    (WESAD does, Stress-Predict does not).
+    """
+    has_chest = "chest" in data["signal"]
+    if has_chest:
+        ecg_ibi = beat_intervals(detect_r_peaks(chest(data, "ECG")))
+        chest_eda = _Eda(to_rate(_filter(chest(data, "EDA"), CHEST_RATE, high=5.0), CHEST_RATE, 16), 16)
+        chest_temp = to_rate(chest(data, "Temp"), CHEST_RATE, 4)
+        emg = _Emg(chest(data, "EMG"), CHEST_RATE)
+        resp = _Resp(chest(data, "Resp"), CHEST_RATE)
+        chest_acc = _Acc(chest(data, "ACC"), CHEST_RATE)
+    bvp_ibi = beat_intervals(detect_pulse_peaks(wrist(data, "BVP")))
     wrist_eda = _Eda(wrist(data, "EDA"), WRIST_RATES["EDA"])
-    chest_temp = to_rate(chest(data, "Temp"), CHEST_RATE, 4)
     wrist_temp = wrist(data, "TEMP")
-    emg = _Emg(chest(data, "EMG"), CHEST_RATE)
-    resp = _Resp(chest(data, "Resp"), CHEST_RATE)
-    chest_acc = _Acc(chest(data, "ACC"), CHEST_RATE)
     wrist_acc = _Acc(wrist(data, "ACC"), WRIST_RATES["ACC"])
 
     starts, window_labels = window_grid(labels(data), window_sec, stride_sec, min_purity)
@@ -300,17 +305,21 @@ def subject_features(data: dict, subject: str, window_sec: float, stride_sec: fl
     for t0, label in zip(starts, window_labels):
         t1 = t0 + window_sec
         a4, b4 = int(t0 * 4), int(t1 * 4)
-        rows.append({
-            "subject": subject, "label": int(label), "start_sec": float(t0),
-            **hrv_features(*ecg_ibi, t0, t1, "chest_ecg_"),
-            **chest_eda.features(t0, t1, "chest_eda_"),
-            **emg.features(t0, t1, "chest_emg_"),
-            **resp.features(t0, t1, "chest_resp_"),
-            **_basic(chest_temp[a4:b4], 4, "chest_temp_"),
-            **chest_acc.features(t0, t1, "chest_acc_"),
+        row = {"subject": subject, "label": int(label), "start_sec": float(t0)}
+        if has_chest:
+            row.update({
+                **hrv_features(*ecg_ibi, t0, t1, "chest_ecg_"),
+                **chest_eda.features(t0, t1, "chest_eda_"),
+                **emg.features(t0, t1, "chest_emg_"),
+                **resp.features(t0, t1, "chest_resp_"),
+                **_basic(chest_temp[a4:b4], 4, "chest_temp_"),
+                **chest_acc.features(t0, t1, "chest_acc_"),
+            })
+        row.update({
             **hrv_features(*bvp_ibi, t0, t1, "wrist_bvp_"),
             **wrist_eda.features(t0, t1, "wrist_eda_"),
             **_basic(wrist_temp[a4:b4], 4, "wrist_temp_"),
             **wrist_acc.features(t0, t1, "wrist_acc_"),
         })
+        rows.append(row)
     return pd.DataFrame(rows)

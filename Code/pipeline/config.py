@@ -30,6 +30,10 @@ CLEAN_CHANNELS = [
     "wr_bvp", "wr_eda", "wr_temp", "wr_acc_x", "wr_acc_y", "wr_acc_z",
 ]
 
+WRIST_CHANNELS = [c for c in CLEAN_CHANNELS if c.startswith("wr_")]
+NORMALISATION_SOURCES = ("recording", "first_minutes", "rest_minutes")
+DATASETS = ("wesad", "stress_predict")
+
 BALANCING_MODES = ("none", "weighted_loss", "weighted_sampler")
 LR_SCHEDULERS = ("none", "plateau")
 
@@ -54,11 +58,28 @@ class CleanPreprocessConfig:
     subject_normalisation: bool = True
     channels: list[str] = field(default_factory=lambda: list(CLEAN_CHANNELS))
     mode: str = "clean"
+    # Which part of a subject's recording the per-subject statistics come from:
+    #   "recording"     the whole recording (needs it all in advance; not deployable)
+    #   "first_minutes" the first normalisation_minutes of the recording
+    #   "rest_minutes"  the first normalisation_minutes of the first rest/baseline block
+    normalisation_source: str = "recording"
+    normalisation_minutes: float = 5.0
+    dataset: str = "wesad"
+    # Stress-Predict only: drop the hyperventilation task instead of calling it stress.
+    exclude_hyperventilation: bool = False
 
     def __post_init__(self):
         unknown = [c for c in self.channels if c not in CLEAN_CHANNELS]
         if unknown:
             raise ValueError(f"Unknown preprocess.channels {unknown}; choose from {CLEAN_CHANNELS}")
+        if self.normalisation_source not in NORMALISATION_SOURCES:
+            raise ValueError(f"preprocess.normalisation_source must be one of {NORMALISATION_SOURCES}")
+        if self.dataset not in DATASETS:
+            raise ValueError(f"preprocess.dataset must be one of {DATASETS}, got {self.dataset!r}")
+        if self.dataset == "stress_predict" and any(not c.startswith("wr_") for c in self.channels):
+            raise ValueError("Stress-Predict has wrist signals only; set preprocess.channels to wr_* channels")
+        if self.exclude_hyperventilation and self.dataset != "stress_predict":
+            raise ValueError("preprocess.exclude_hyperventilation applies to Stress-Predict only")
 
 
 @dataclass(frozen=True)
@@ -139,6 +160,16 @@ class TrainConfig:
     # out val_subjects whole training subjects instead.
     validation: str = "random_windows"
     val_subjects: int = 2
+    # Per-user calibration: after training, fine-tune on the first N minutes of
+    # each condition of the test subject (one entry per N to try) and test on
+    # the rest of that subject's recording.
+    calibration_minutes: list[float] = field(default_factory=list)
+    calibration_epochs: int = 10
+    calibration_lr: float = 1e-4
+    # "head" fine-tunes only the final classifier layers (the usual few-shot
+    # choice; a pilot that tuned every layer on a few windows overfitted),
+    # "all" fine-tunes the whole network.
+    calibration_layers: str = "head"
 
     def __post_init__(self):
         if self.balancing not in BALANCING_MODES:
@@ -147,13 +178,37 @@ class TrainConfig:
             raise ValueError(f"train.lr_scheduler must be one of {LR_SCHEDULERS}, got {self.lr_scheduler!r}")
         if self.task not in TASKS:
             raise ValueError(f"train.task must be one of {list(TASKS)}, got {self.task!r}")
+        if self.calibration_layers not in ("head", "all"):
+            raise ValueError(f"train.calibration_layers must be 'head' or 'all', got {self.calibration_layers!r}")
         if self.validation not in VALIDATION_MODES:
             raise ValueError(f"train.validation must be one of {VALIDATION_MODES}, got {self.validation!r}")
 
 
 # Options added after runs were already saved. A saved run without them was
 # made with these values, which reproduce the earlier behaviour.
-ADDED_TRAIN_DEFAULTS = {"task": "four_class", "validation": "random_windows", "val_subjects": 2}
+ADDED_TRAIN_DEFAULTS = {
+    "task": "four_class", "validation": "random_windows", "val_subjects": 2,
+    "calibration_minutes": [], "calibration_epochs": 10, "calibration_lr": 1e-4, "calibration_layers": "head",
+}
+ADDED_CLEAN_DEFAULTS = {
+    "normalisation_source": "recording", "normalisation_minutes": 5.0,
+    "dataset": "wesad", "exclude_hyperventilation": False,
+}
+
+
+def upgrade_saved_config(saved: dict) -> dict:
+    """Fill options added later into a config dict saved before they existed.
+
+    Works on a whole run config (``preprocess``/``train`` keys) or on the
+    preprocessing settings alone (``mode`` key).
+    """
+    saved = dict(saved)
+    if "preprocess" in saved:
+        saved["preprocess"] = upgrade_saved_config(saved["preprocess"])
+        saved["train"] = {**ADDED_TRAIN_DEFAULTS, **saved["train"]}
+    elif saved.get("mode") == "clean":
+        saved = {**ADDED_CLEAN_DEFAULTS, **saved}
+    return saved
 
 
 @dataclass(frozen=True)
@@ -209,3 +264,17 @@ def load_config(path: str | Path) -> RunConfig:
         model=SeqModelConfig(**model) if arch == "seq" else ModelConfig(**model),
         train=TrainConfig(**raw["train"]),
     )
+
+
+def load_cross_config(path: str | Path) -> tuple[RunConfig, RunConfig]:
+    """A cross-dataset run: ``[cross]`` names a training config and a test config.
+
+    Returns (training config renamed to this run, test config). Model and
+    training settings come from the training config; the test config only
+    supplies its dataset and preprocessing.
+    """
+    with open(path, "rb") as fh:
+        cross = tomllib.load(fh)["cross"]
+    train = load_config(_resolve(cross["train_config"]))
+    test = load_config(_resolve(cross["test_config"]))
+    return replace(train, name=cross["name"], out_dir=_resolve(cross["out_dir"])), test

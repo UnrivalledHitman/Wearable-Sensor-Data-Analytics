@@ -1,0 +1,24 @@
+# M5 part 1: deployable per-subject normalisation, classical baselines.
+# "recording" uses the whole recording (the M2 setting, not deployable);
+# "first_minutes:5" uses the first 5 minutes of wear; "rest_minutes:5" the
+# first 5 minutes of the rest/baseline block, as a calibration step would.
+
+[run]
+name = "m5_baselines_normalisation"
+seed = 42
+
+[paths]  # relative to Code/
+raw_dir = "WESAD"
+features_dir = "features"
+out_dir = "runs/m5/baselines_normalisation"
+
+[windows]
+window_sec = [60]
+stride_sec = 5
+min_label_purity = 1.0
+
+[eval]
+tasks = ["binary", "three_class", "four_class"]
+feature_sets = ["chest_physio", "wrist_physio", "all_physio"]
+classifiers = ["RF", "AB", "LDA"]
+normalisation = ["none", "recording", "first_minutes:5", "rest_minutes:5"]

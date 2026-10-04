@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import platform
 import random
@@ -16,7 +17,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler
 
-from .config import ADDED_TRAIN_DEFAULTS, CODE_DIR, TASKS, RunConfig
+from .config import CODE_DIR, TASKS, RunConfig, upgrade_saved_config
 from .model import build_model, count_parameters
 from .preprocess import preprocessed_files
 
@@ -57,10 +58,7 @@ def load_normalised(npz_paths: list[Path], mean, std, task: str = "four_class"):
     Labels are mapped to the task's classes; windows of classes the task does
     not use are dropped.
     """
-    mapping = TASKS[task]["map"]
-    lookup = np.full(4, -1, dtype=np.int64)
-    for src, dst in mapping.items():
-        lookup[src] = dst
+    lookup = _task_lookup(task)
 
     Xs, ys, groups = [], [], []
     for i, p in enumerate(npz_paths):
@@ -73,6 +71,23 @@ def load_normalised(npz_paths: list[Path], mean, std, task: str = "four_class"):
         ys.append(torch.from_numpy(y))
         groups.append(torch.full((len(y),), i, dtype=torch.int64))
     return torch.cat(Xs), torch.cat(ys), torch.cat(groups)
+
+
+def _task_lookup(task: str) -> np.ndarray:
+    """Array mapping the four condition classes to the task's classes (-1 = dropped)."""
+    lookup = np.full(4, -1, dtype=np.int64)
+    for src, dst in TASKS[task]["map"].items():
+        lookup[src] = dst
+    return lookup
+
+
+def load_starts(npz_path: Path, task: str) -> np.ndarray:
+    """Window start times (s) of the windows ``load_normalised`` keeps for ``task``."""
+    with np.load(npz_path) as arr:
+        if "starts" not in arr:
+            raise ValueError(f"{npz_path.name} has no window start times; re-run with --force-preprocess")
+        keep = _task_lookup(task)[arr["y"].astype(np.int64)] >= 0
+        return arr["starts"][keep]
 
 
 def balanced_class_weights(y: torch.Tensor, num_classes: int) -> torch.Tensor:
@@ -191,6 +206,53 @@ def fold_metrics(y_true: np.ndarray, y_pred: np.ndarray, class_names: list[str])
     }
 
 
+def calibrate(cfg: RunConfig, model, X_test: torch.Tensor, y_test: torch.Tensor, starts: np.ndarray,
+              class_names: list[str], device, generator: torch.Generator) -> dict:
+    """Per-user calibration of a trained model, for each amount in train.calibration_minutes.
+
+    The first N minutes of each condition of the test subject are used to
+    fine-tune a copy of the model (its classifier head only, unless
+    train.calibration_layers = "all"); it is tested on the rest of the recording,
+    excluding anything that overlaps those minutes. The uncalibrated model is
+    scored on the same windows, so before and after are directly comparable.
+    """
+    from .baselines import calibration_split  # same split rule as the classical baselines
+
+    tc, pc = cfg.train, cfg.preprocess
+    batch = tc.test_batch_size or tc.batch_size
+    out = {}
+    for minutes in tc.calibration_minutes:
+        calib, test = calibration_split(starts, y_test.numpy(), minutes, pc.window_sec, pc.stride_sec)
+        calib_idx, test_idx = torch.from_numpy(np.flatnonzero(calib)), torch.from_numpy(np.flatnonzero(test))
+        y_true = y_test[test_idx].numpy()
+        before = fold_metrics(y_true, predict(model, X_test[test_idx], batch, device), class_names)
+
+        tuned = copy.deepcopy(model)
+        params = tuned.classifier.parameters() if tc.calibration_layers == "head" else tuned.parameters()
+        optimizer = torch.optim.AdamW(params, lr=tc.calibration_lr)
+        criterion = nn.CrossEntropyLoss()
+        loader = DataLoader(TensorDataset(X_test[calib_idx], y_test[calib_idx]),
+                            batch_size=32, shuffle=True, generator=generator)
+        for _ in range(tc.calibration_epochs):
+            tuned.train()
+            for m in tuned.modules():  # a few windows must not overwrite the batch-norm statistics
+                if isinstance(m, nn.modules.batchnorm._BatchNorm):
+                    m.eval()
+            for xb, yb in loader:
+                optimizer.zero_grad(set_to_none=True)
+                loss = criterion(tuned(xb.to(device)), yb.to(device))
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(tuned.parameters(), tc.grad_clip)
+                optimizer.step()
+
+        after = fold_metrics(y_true, predict(tuned, X_test[test_idx], batch, device), class_names)
+        out[f"{minutes:g}"] = {"n_calibration": int(calib.sum()), "n_test": int(test.sum()),
+                               "before": before, **after}
+        print(f"    calibration {minutes:g} min: acc {before['accuracy']:.4f} -> {after['accuracy']:.4f}")
+        del tuned
+    return out
+
+
 def _git_commit() -> str | None:
     try:
         out = subprocess.run(
@@ -219,8 +281,7 @@ def _can_resume(cfg: RunConfig) -> bool:
     if not manifest_path.exists():
         return False
     saved = json.loads(manifest_path.read_text())["config"]
-    saved["train"] = {**ADDED_TRAIN_DEFAULTS, **saved["train"]}
-    return saved == cfg.to_dict()
+    return upgrade_saved_config(saved) == cfg.to_dict()
 
 
 def split_validation(cfg: RunConfig, n_windows: int, groups: torch.Tensor, generator: torch.Generator):
@@ -309,6 +370,10 @@ def run_loso(cfg: RunConfig, device: torch.device | None = None, resume: bool = 
             "n_parameters": n_params,
             "seed": fold_seed,
         }
+        if cfg.train.calibration_minutes:
+            result["calibration"] = calibrate(
+                cfg, model, X_test, y_test, load_starts(test_file, cfg.train.task), class_names, device, generator,
+            )
         fold_path.write_text(json.dumps(result, indent=2))
         results.append(result)
         print(f"[{test_subj}] TEST | acc={result['accuracy']:.4f} | f1_macro={result['f1_macro']:.4f}")
@@ -317,4 +382,71 @@ def run_loso(cfg: RunConfig, device: torch.device | None = None, resume: bool = 
         if device.type == "cuda":
             torch.cuda.empty_cache()
 
+    return results
+
+
+def run_cross_dataset(train_cfg: RunConfig, test_cfg: RunConfig, out_dir: Path,
+                      device: torch.device | None = None, resume: bool = False,
+                      max_minutes: float | None = None) -> list[dict]:
+    """Train once on every subject of ``train_cfg``'s data, test on each subject of
+    ``test_cfg``'s data. Results are written per test subject, like LOSO folds.
+
+    Only ``test_cfg``'s data settings are used; model and training come from
+    ``train_cfg``. Both must provide the same channels.
+    """
+    device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if list(train_cfg.preprocess.channels) != list(test_cfg.preprocess.channels):
+        raise ValueError("Cross-dataset runs need the same channels in the training and test data")
+    train_files, test_files = preprocessed_files(train_cfg), preprocessed_files(test_cfg)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest = {"config": train_cfg.to_dict(), "test_config": test_cfg.to_dict()}
+    manifest_path = out_dir / "run_manifest.json"
+    fold_paths = [out_dir / f"fold_{subject_of(f)}.json" for f in test_files]
+    if resume and manifest_path.exists() and all(p.exists() for p in fold_paths):
+        saved = json.loads(manifest_path.read_text())
+        if (upgrade_saved_config(saved["config"]) == manifest["config"]
+                and upgrade_saved_config(saved["test_config"]) == manifest["test_config"]):
+            print(f"[{train_cfg.name}] already done, skipping")
+            return [json.loads(p.read_text()) for p in fold_paths]
+    if max_minutes is not None and max_minutes <= 0:
+        print(f"[{train_cfg.name}] Time budget reached; rerun with --resume.")
+        return []
+    manifest.update({"git_commit": _git_commit(), "torch": torch.__version__})
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+
+    task = train_cfg.train.task
+    class_names = TASKS[task]["classes"]
+    set_seed(train_cfg.seed)
+    generator = torch.Generator().manual_seed(train_cfg.seed)
+
+    mean, std = channel_mean_std(train_files)
+    X_all, y_all, groups = load_normalised(train_files, mean, std, task)
+    train_idx, val_idx = split_validation(train_cfg, len(X_all), groups, generator)
+    model = build_model(X_all.shape[2], train_cfg.model, len(class_names)).to(device)
+    n_params = count_parameters(model)
+    ckpt = out_dir / "checkpoints" / "best.pt"
+    ckpt.parent.mkdir(parents=True, exist_ok=True)
+    print(f"[{train_cfg.name}] training on {len(train_files)} subjects, {n_params:,} parameters")
+    t0 = time.perf_counter()
+    best_val, epochs_run = train_fold(train_cfg, model, X_all[train_idx], y_all[train_idx],
+                                      X_all[val_idx], y_all[val_idx], ckpt, device, generator, train_cfg.name)
+    train_seconds = time.perf_counter() - t0
+    model.load_state_dict(torch.load(ckpt, map_location=device)["model_state"])
+    del X_all, y_all, groups
+
+    results = []
+    batch = train_cfg.train.test_batch_size or train_cfg.train.batch_size
+    for test_file, fold_path in zip(test_files, fold_paths):
+        X_test, y_test, _ = load_normalised([test_file], mean, std, task)
+        result = {
+            "subject": subject_of(test_file),
+            **fold_metrics(y_test.numpy(), predict(model, X_test, batch, device), class_names),
+            "best_val_loss": float(best_val), "epochs_run": epochs_run,
+            "train_seconds": round(train_seconds, 1), "n_parameters": n_params, "seed": train_cfg.seed,
+        }
+        fold_path.write_text(json.dumps(result, indent=2))
+        results.append(result)
+    accs = [r["accuracy"] for r in results]
+    print(f"[{train_cfg.name}] tested on {len(results)} subjects: mean acc {np.mean(accs):.4f}")
     return results
