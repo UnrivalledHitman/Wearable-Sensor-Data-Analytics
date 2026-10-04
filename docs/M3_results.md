@@ -12,6 +12,12 @@ training subjects. Source: `Code/runs/m3_summary/seed_summary.csv`
 **Exit gate (every class F1 above 0.5): not met.** Amusement F1 is 0.17-0.45
 for every deep model. Baseline, stress and meditation are recognised well.
 
+**Decision (2026-10-04): accepted, reported as an open problem.** No further
+tuning to lift amusement before M4. The paper states the shortfall, and M6
+analyses it (which classes amusement is confused with, per subject) and sets
+it against the dataset paper's finding that the amusement condition had only a
+small effect on participants' self-reports.
+
 **The proposed CNN + BiGRU + attention model has no advantage.** On four- and
 three-class it is matched or beaten by a plain CNN with 11× fewer parameters;
 on binary all six models fall within 1 point. Every deep model stays well
