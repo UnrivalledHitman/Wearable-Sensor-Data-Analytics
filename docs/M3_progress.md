@@ -78,8 +78,9 @@ python Code/run_pipeline.py run --config Code/configs/m3/c_*.toml Code/configs/m
 python Code/run_pipeline.py run --config Code/configs/m3/a_*.toml --seeds 42 43 44 45 46 --resume
 ```
 
-Runs with `--seeds` write to `<out_dir>_seed<N>`, so the single-seed runs above
-(in folders without a seed suffix) are not reused; seed 42 is retrained once.
+Runs with `--seeds` write to `<out_dir>_seed<N>`. The single-seed runs quoted
+above were superseded by the seeded grid and have been removed; final numbers
+are in [M3_results.md](M3_results.md).
 
 ## Not done yet
 

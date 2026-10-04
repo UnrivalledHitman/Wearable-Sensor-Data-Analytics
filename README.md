@@ -11,7 +11,7 @@ Edge Deloyable deep learning model to detect patient mental state on the go rath
 | `Code/tests/` | Smoke test on synthetic data, plus a check that committed results match the paper |
 | `Code/runs/` | Output of each run (fold results, report, checkpoints) |
 | `Code/results_training_hybrid/`, `Code/results_evaluation/` | Fold results behind the current paper draft (December 2025) |
-| `Code/*.ipynb` | Original notebooks, kept for reference; no longer the source of truth |
+| `Code/wesad_full_pipeline_code.ipynb` | Original notebook, kept for reference; no longer the source of truth |
 | `references/` | Verified bibliography and the record of how each entry was checked |
 
 ## Setup
