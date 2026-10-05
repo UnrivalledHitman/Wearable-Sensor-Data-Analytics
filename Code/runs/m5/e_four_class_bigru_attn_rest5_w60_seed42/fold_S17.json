@@ -1,0 +1,541 @@
+{
+  "subject": "S17",
+  "class_names": [
+    "baseline",
+    "stress",
+    "amusement",
+    "meditation"
+  ],
+  "accuracy": 0.4797047970479705,
+  "f1_macro": 0.40399012751953933,
+  "confusion_matrix": [
+    [
+      64,
+      0,
+      6,
+      42
+    ],
+    [
+      0,
+      0,
+      35,
+      31
+    ],
+    [
+      0,
+      0,
+      31,
+      0
+    ],
+    [
+      0,
+      0,
+      27,
+      35
+    ]
+  ],
+  "classification_report": {
+    "baseline": {
+      "precision": 1.0,
+      "recall": 0.5714285714285714,
+      "f1-score": 0.7272727272727273,
+      "support": 112.0
+    },
+    "stress": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 66.0
+    },
+    "amusement": {
+      "precision": 0.31313131313131315,
+      "recall": 1.0,
+      "f1-score": 0.47692307692307695,
+      "support": 31.0
+    },
+    "meditation": {
+      "precision": 0.32407407407407407,
+      "recall": 0.5645161290322581,
+      "f1-score": 0.4117647058823529,
+      "support": 62.0
+    },
+    "accuracy": 0.4797047970479705,
+    "macro avg": {
+      "precision": 0.4093013468013468,
+      "recall": 0.5339861751152074,
+      "f1-score": 0.40399012751953933,
+      "support": 271.0
+    },
+    "weighted avg": {
+      "precision": 0.523245990035658,
+      "recall": 0.4797047970479705,
+      "f1-score": 0.4493305262135303,
+      "support": 271.0
+    }
+  },
+  "best_val_loss": 2.2525215220901202,
+  "epochs_run": 17,
+  "train_seconds": 14.1,
+  "seconds_per_epoch": 0.83,
+  "peak_gpu_mb": 564,
+  "n_parameters": 808964,
+  "seed": 48,
+  "calibration": {
+    "1": {
+      "n_calibration": 4,
+      "n_test": 247,
+      "before": {
+        "class_names": [
+          "baseline",
+          "stress",
+          "amusement",
+          "meditation"
+        ],
+        "accuracy": 0.4534412955465587,
+        "f1_macro": 0.38020856304855993,
+        "confusion_matrix": [
+          [
+            58,
+            0,
+            6,
+            42
+          ],
+          [
+            0,
+            0,
+            29,
+            31
+          ],
+          [
+            0,
+            0,
+            25,
+            0
+          ],
+          [
+            0,
+            0,
+            27,
+            29
+          ]
+        ],
+        "classification_report": {
+          "baseline": {
+            "precision": 1.0,
+            "recall": 0.5471698113207547,
+            "f1-score": 0.7073170731707317,
+            "support": 106.0
+          },
+          "stress": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 60.0
+          },
+          "amusement": {
+            "precision": 0.28735632183908044,
+            "recall": 1.0,
+            "f1-score": 0.44642857142857145,
+            "support": 25.0
+          },
+          "meditation": {
+            "precision": 0.28431372549019607,
+            "recall": 0.5178571428571429,
+            "f1-score": 0.3670886075949367,
+            "support": 56.0
+          },
+          "accuracy": 0.4534412955465587,
+          "macro avg": {
+            "precision": 0.39291751183231916,
+            "recall": 0.5162567385444744,
+            "f1-score": 0.38020856304855993,
+            "support": 247.0
+          },
+          "weighted avg": {
+            "precision": 0.5226942375442428,
+            "recall": 0.4534412955465587,
+            "f1-score": 0.43195662375355587,
+            "support": 247.0
+          }
+        }
+      },
+      "class_names": [
+        "baseline",
+        "stress",
+        "amusement",
+        "meditation"
+      ],
+      "accuracy": 0.48582995951417,
+      "f1_macro": 0.4259564494703971,
+      "confusion_matrix": [
+        [
+          61,
+          0,
+          3,
+          42
+        ],
+        [
+          0,
+          3,
+          22,
+          35
+        ],
+        [
+          0,
+          0,
+          25,
+          0
+        ],
+        [
+          0,
+          0,
+          25,
+          31
+        ]
+      ],
+      "classification_report": {
+        "baseline": {
+          "precision": 1.0,
+          "recall": 0.5754716981132075,
+          "f1-score": 0.7305389221556886,
+          "support": 106.0
+        },
+        "stress": {
+          "precision": 1.0,
+          "recall": 0.05,
+          "f1-score": 0.09523809523809523,
+          "support": 60.0
+        },
+        "amusement": {
+          "precision": 0.3333333333333333,
+          "recall": 1.0,
+          "f1-score": 0.5,
+          "support": 25.0
+        },
+        "meditation": {
+          "precision": 0.28703703703703703,
+          "recall": 0.5535714285714286,
+          "f1-score": 0.3780487804878049,
+          "support": 56.0
+        },
+        "accuracy": 0.48582995951417,
+        "macro avg": {
+          "precision": 0.6550925925925927,
+          "recall": 0.544760781671159,
+          "f1-score": 0.4259564494703971,
+          "support": 247.0
+        },
+        "weighted avg": {
+          "precision": 0.7708801919328235,
+          "recall": 0.48582995951417,
+          "f1-score": 0.47296414238909223,
+          "support": 247.0
+        }
+      }
+    },
+    "2": {
+      "n_calibration": 28,
+      "n_test": 223,
+      "before": {
+        "class_names": [
+          "baseline",
+          "stress",
+          "amusement",
+          "meditation"
+        ],
+        "accuracy": 0.42152466367713004,
+        "f1_macro": 0.3508835846538526,
+        "confusion_matrix": [
+          [
+            52,
+            0,
+            6,
+            42
+          ],
+          [
+            0,
+            0,
+            23,
+            31
+          ],
+          [
+            0,
+            0,
+            19,
+            0
+          ],
+          [
+            0,
+            0,
+            27,
+            23
+          ]
+        ],
+        "classification_report": {
+          "baseline": {
+            "precision": 1.0,
+            "recall": 0.52,
+            "f1-score": 0.6842105263157895,
+            "support": 100.0
+          },
+          "stress": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 54.0
+          },
+          "amusement": {
+            "precision": 0.25333333333333335,
+            "recall": 1.0,
+            "f1-score": 0.40425531914893614,
+            "support": 19.0
+          },
+          "meditation": {
+            "precision": 0.23958333333333334,
+            "recall": 0.46,
+            "f1-score": 0.3150684931506849,
+            "support": 50.0
+          },
+          "accuracy": 0.42152466367713004,
+          "macro avg": {
+            "precision": 0.37322916666666667,
+            "recall": 0.495,
+            "f1-score": 0.3508835846538526,
+            "support": 223.0
+          },
+          "weighted avg": {
+            "precision": 0.5237331838565022,
+            "recall": 0.42152466367713004,
+            "f1-score": 0.41190730203113446,
+            "support": 223.0
+          }
+        }
+      },
+      "class_names": [
+        "baseline",
+        "stress",
+        "amusement",
+        "meditation"
+      ],
+      "accuracy": 0.4663677130044843,
+      "f1_macro": 0.3570879465367132,
+      "confusion_matrix": [
+        [
+          57,
+          0,
+          1,
+          42
+        ],
+        [
+          0,
+          22,
+          0,
+          32
+        ],
+        [
+          0,
+          19,
+          0,
+          0
+        ],
+        [
+          0,
+          25,
+          0,
+          25
+        ]
+      ],
+      "classification_report": {
+        "baseline": {
+          "precision": 1.0,
+          "recall": 0.57,
+          "f1-score": 0.7261146496815286,
+          "support": 100.0
+        },
+        "stress": {
+          "precision": 0.3333333333333333,
+          "recall": 0.4074074074074074,
+          "f1-score": 0.36666666666666664,
+          "support": 54.0
+        },
+        "amusement": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 19.0
+        },
+        "meditation": {
+          "precision": 0.25252525252525254,
+          "recall": 0.5,
+          "f1-score": 0.33557046979865773,
+          "support": 50.0
+        },
+        "accuracy": 0.4663677130044843,
+        "macro avg": {
+          "precision": 0.39646464646464646,
+          "recall": 0.3693518518518518,
+          "f1-score": 0.3570879465367132,
+          "support": 223.0
+        },
+        "weighted avg": {
+          "precision": 0.5857679938397427,
+          "recall": 0.4663677130044843,
+          "f1-score": 0.4896412038479181,
+          "support": 223.0
+        }
+      }
+    },
+    "4": {
+      "n_calibration": 76,
+      "n_test": 175,
+      "before": {
+        "class_names": [
+          "baseline",
+          "stress",
+          "amusement",
+          "meditation"
+        ],
+        "accuracy": 0.3314285714285714,
+        "f1_macro": 0.2571613723418307,
+        "confusion_matrix": [
+          [
+            40,
+            0,
+            6,
+            42
+          ],
+          [
+            0,
+            0,
+            20,
+            22
+          ],
+          [
+            0,
+            0,
+            7,
+            0
+          ],
+          [
+            0,
+            0,
+            27,
+            11
+          ]
+        ],
+        "classification_report": {
+          "baseline": {
+            "precision": 1.0,
+            "recall": 0.45454545454545453,
+            "f1-score": 0.625,
+            "support": 88.0
+          },
+          "stress": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 42.0
+          },
+          "amusement": {
+            "precision": 0.11666666666666667,
+            "recall": 1.0,
+            "f1-score": 0.208955223880597,
+            "support": 7.0
+          },
+          "meditation": {
+            "precision": 0.14666666666666667,
+            "recall": 0.2894736842105263,
+            "f1-score": 0.19469026548672566,
+            "support": 38.0
+          },
+          "accuracy": 0.3314285714285714,
+          "macro avg": {
+            "precision": 0.31583333333333335,
+            "recall": 0.43600478468899523,
+            "f1-score": 0.2571613723418307,
+            "support": 175.0
+          },
+          "weighted avg": {
+            "precision": 0.5393714285714286,
+            "recall": 0.3314285714285714,
+            "f1-score": 0.3649195237466271,
+            "support": 175.0
+          }
+        }
+      },
+      "class_names": [
+        "baseline",
+        "stress",
+        "amusement",
+        "meditation"
+      ],
+      "accuracy": 0.36,
+      "f1_macro": 0.30478707035181696,
+      "confusion_matrix": [
+        [
+          42,
+          0,
+          5,
+          41
+        ],
+        [
+          0,
+          4,
+          18,
+          20
+        ],
+        [
+          0,
+          0,
+          7,
+          0
+        ],
+        [
+          0,
+          4,
+          24,
+          10
+        ]
+      ],
+      "classification_report": {
+        "baseline": {
+          "precision": 1.0,
+          "recall": 0.4772727272727273,
+          "f1-score": 0.6461538461538462,
+          "support": 88.0
+        },
+        "stress": {
+          "precision": 0.5,
+          "recall": 0.09523809523809523,
+          "f1-score": 0.16,
+          "support": 42.0
+        },
+        "amusement": {
+          "precision": 0.12962962962962962,
+          "recall": 1.0,
+          "f1-score": 0.22950819672131148,
+          "support": 7.0
+        },
+        "meditation": {
+          "precision": 0.14084507042253522,
+          "recall": 0.2631578947368421,
+          "f1-score": 0.1834862385321101,
+          "support": 38.0
+        },
+        "accuracy": 0.36,
+        "macro avg": {
+          "precision": 0.4426186750130412,
+          "recall": 0.4589171793119161,
+          "f1-score": 0.30478707035181696,
+          "support": 175.0
+        },
+        "weighted avg": {
+          "precision": 0.6586258290483642,
+          "recall": 0.36,
+          "f1-score": 0.4123461308731876,
+          "support": 175.0
+        }
+      }
+    }
+  }
+}

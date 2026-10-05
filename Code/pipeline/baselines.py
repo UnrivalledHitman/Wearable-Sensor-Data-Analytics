@@ -13,6 +13,7 @@ of the test subject, and training on one dataset while testing on another.
 from __future__ import annotations
 
 import json
+import os
 import time
 import tomllib
 from dataclasses import dataclass, field
@@ -314,6 +315,38 @@ def _summarise(folds: dict, extra: dict) -> dict:
     return row
 
 
+def _tagged(subject, fn, *args):
+    return subject, fn(*args)
+
+
+def _cached_folds(fold_dir: Path, order: list[str], n_jobs: int, task, deadline: float | None = None) -> dict | None:
+    """Run one combination's folds in parallel, saving each fold as it finishes.
+
+    ``task(subject)`` returns (function, *arguments) for that subject's fold.
+    Folds already saved are reused, so a combination interrupted part-way
+    continues instead of starting again. Folds run in batches of ``n_jobs``;
+    after ``deadline`` (a perf_counter time) no new batch starts and None is
+    returned.
+    """
+    fold_dir.mkdir(parents=True, exist_ok=True)
+    done = {}
+    for subject in order:
+        path = fold_dir / f"{subject}.json"
+        if path.exists():
+            done[subject] = json.loads(path.read_text())
+    todo = [subject for subject in order if subject not in done]
+    batch = max(1, n_jobs if n_jobs > 0 else os.cpu_count() or 1)
+    for i in range(0, len(todo), batch):
+        if deadline is not None and time.perf_counter() > deadline:
+            return None
+        results = Parallel(n_jobs=n_jobs, return_as="generator_unordered")(
+            delayed(_tagged)(subject, *task(subject)) for subject in todo[i:i + batch])
+        for subject, result in results:
+            (fold_dir / f"{subject}.json").write_text(json.dumps(result))
+            done[subject] = result
+    return {subject: done[subject] for subject in order}
+
+
 def _order(subjects) -> list[str]:
     return sorted(np.unique(subjects), key=lambda s: int(str(s).lstrip("S")))
 
@@ -330,6 +363,7 @@ def evaluate(cfg: BaselineConfig, n_jobs: int = -1, max_minutes: float | None = 
     cache_dir = cfg.out_dir / "combinations"
     cache_dir.mkdir(parents=True, exist_ok=True)
     rows, pending, started = [], 0, time.perf_counter()
+    deadline = None if max_minutes is None else started + max_minutes * 60
     cross = cfg.test_dataset is not None
     feature_jobs = min(4, n_jobs) if n_jobs > 0 else 4
 
@@ -386,17 +420,18 @@ def evaluate(cfg: BaselineConfig, n_jobs: int = -1, max_minutes: float | None = 
                                 n_windows = int(len(y_test))
                             elif minutes is None:
                                 order = _order(subjects)
-                                folds = dict(zip(order, Parallel(n_jobs=n_jobs)(
-                                    delayed(_fold)(model, X, y, subjects == s, n_classes) for s in order)))
+                                folds = _cached_folds(cache_dir / key, order, n_jobs, lambda s: (
+                                    _fold, model, X, y, subjects == s, n_classes), deadline)
                                 n_windows = int(len(y))
                             else:
                                 order = _order(subjects)
-                                folds = dict(zip(order, Parallel(n_jobs=n_jobs)(
-                                    delayed(_calibration_fold)(model, X, y, subjects, starts, s, minutes,
-                                                               window_sec, cfg.stride_sec,
-                                                               cfg.calibration_weight, n_classes)
-                                    for s in order)))
+                                folds = _cached_folds(cache_dir / key, order, n_jobs, lambda s: (
+                                    _calibration_fold, model, X, y, subjects, starts, s, minutes,
+                                    window_sec, cfg.stride_sec, cfg.calibration_weight, n_classes), deadline)
                                 n_windows = int(len(y))
+                            if folds is None:  # time budget reached part-way; folds so far are saved
+                                pending += 1
+                                continue
 
                             row = _summarise(folds, {
                                 "dataset": cfg.dataset, "test_dataset": cfg.test_dataset,

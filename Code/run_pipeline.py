@@ -85,10 +85,13 @@ def cmd_report(args) -> None:
 def cmd_baselines(args) -> None:
     from pipeline.baselines import evaluate, load_baseline_config, print_best
 
+    # One time budget shared by every config in this invocation.
+    deadline = None if args.max_minutes is None else time.perf_counter() + args.max_minutes * 60
     for path in expand_globs(args.config):
         cfg = load_baseline_config(path)
         cfg.out_dir.mkdir(parents=True, exist_ok=True)
-        summary = evaluate(cfg, n_jobs=args.jobs, max_minutes=args.max_minutes)
+        remaining = None if deadline is None else max(0.0, (deadline - time.perf_counter()) / 60)
+        summary = evaluate(cfg, n_jobs=args.jobs, max_minutes=remaining)
         print(f"\n[{cfg.name}] best classifier per setting (LOSO mean accuracy):")
         print_best(summary)
         print(f"\nSummary written to {cfg.out_dir / 'summary.csv'}")
