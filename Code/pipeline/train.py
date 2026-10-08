@@ -341,8 +341,13 @@ def run_loso(cfg: RunConfig, device: torch.device | None = None, resume: bool = 
         X_all, y_all, groups = load_normalised(train_files, mean, std, cfg.train.task)
         X_test, y_test, _ = load_normalised([test_file], mean, std, cfg.train.task)
         train_idx, val_idx = split_validation(cfg, len(X_all), groups, generator)
+        n_channels = X_all.shape[2]
+        # Slice once and drop the full array, which would otherwise stay in memory alongside the slices.
+        X_train, y_train = X_all[train_idx], y_all[train_idx]
+        X_val, y_val = X_all[val_idx], y_all[val_idx]
+        del X_all, y_all, groups
 
-        model = build_model(X_all.shape[2], cfg.model, len(class_names)).to(device)
+        model = build_model(n_channels, cfg.model, len(class_names)).to(device)
         n_params = count_parameters(model)
         print(f"Model built - {n_params:,} trainable parameters")
 
@@ -351,8 +356,7 @@ def run_loso(cfg: RunConfig, device: torch.device | None = None, resume: bool = 
             torch.cuda.reset_peak_memory_stats(device)
         t0 = time.perf_counter()
         best_val, epochs_run = train_fold(
-            cfg, model, X_all[train_idx], y_all[train_idx], X_all[val_idx], y_all[val_idx],
-            ckpt, device, generator, test_subj,
+            cfg, model, X_train, y_train, X_val, y_val, ckpt, device, generator, test_subj,
         )
         train_seconds = time.perf_counter() - t0
 
@@ -378,7 +382,7 @@ def run_loso(cfg: RunConfig, device: torch.device | None = None, resume: bool = 
         results.append(result)
         print(f"[{test_subj}] TEST | acc={result['accuracy']:.4f} | f1_macro={result['f1_macro']:.4f}")
 
-        del model, X_all, y_all, groups, X_test, y_test
+        del model, X_train, y_train, X_val, y_val, X_test, y_test
         if device.type == "cuda":
             torch.cuda.empty_cache()
 
@@ -423,17 +427,21 @@ def run_cross_dataset(train_cfg: RunConfig, test_cfg: RunConfig, out_dir: Path,
     mean, std = channel_mean_std(train_files)
     X_all, y_all, groups = load_normalised(train_files, mean, std, task)
     train_idx, val_idx = split_validation(train_cfg, len(X_all), groups, generator)
-    model = build_model(X_all.shape[2], train_cfg.model, len(class_names)).to(device)
+    n_channels = X_all.shape[2]
+    X_train, y_train = X_all[train_idx], y_all[train_idx]
+    X_val, y_val = X_all[val_idx], y_all[val_idx]
+    del X_all, y_all, groups
+    model = build_model(n_channels, train_cfg.model, len(class_names)).to(device)
     n_params = count_parameters(model)
     ckpt = out_dir / "checkpoints" / "best.pt"
     ckpt.parent.mkdir(parents=True, exist_ok=True)
     print(f"[{train_cfg.name}] training on {len(train_files)} subjects, {n_params:,} parameters")
     t0 = time.perf_counter()
-    best_val, epochs_run = train_fold(train_cfg, model, X_all[train_idx], y_all[train_idx],
-                                      X_all[val_idx], y_all[val_idx], ckpt, device, generator, train_cfg.name)
+    best_val, epochs_run = train_fold(train_cfg, model, X_train, y_train, X_val, y_val,
+                                      ckpt, device, generator, train_cfg.name)
     train_seconds = time.perf_counter() - t0
     model.load_state_dict(torch.load(ckpt, map_location=device)["model_state"])
-    del X_all, y_all, groups
+    del X_train, y_train, X_val, y_val
 
     results = []
     batch = train_cfg.train.test_batch_size or train_cfg.train.batch_size

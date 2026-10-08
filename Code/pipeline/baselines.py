@@ -233,9 +233,25 @@ def _scores(y_true: np.ndarray, y_pred: np.ndarray, n_classes: int) -> dict:
     }
 
 
-def _fold(model, X: np.ndarray, y: np.ndarray, test_mask: np.ndarray, n_classes: int) -> dict:
-    model = clone(model).fit(X[~test_mask], y[~test_mask])
-    return _scores(y[test_mask], model.predict(X[test_mask]), n_classes)
+def _subject_predictions(model, X, y, test_mask: np.ndarray, cache: Path | None) -> np.ndarray:
+    """Predictions for one held-out subject from a model trained on everyone else.
+
+    This model is the same for plain LOSO and for every calibration amount
+    (same rows, same seed, so the same fit), so its predictions are saved
+    once in ``cache`` and reused instead of training it again.
+    """
+    if cache is not None and cache.exists():
+        return np.array(json.loads(cache.read_text()), dtype=np.int64)
+    pred = clone(model).fit(X[~test_mask], y[~test_mask]).predict(X[test_mask])
+    if cache is not None:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(np.asarray(pred).tolist()))
+    return np.asarray(pred)
+
+
+def _fold(model, X: np.ndarray, y: np.ndarray, test_mask: np.ndarray, n_classes: int,
+          cache: Path | None = None) -> dict:
+    return _scores(y[test_mask], _subject_predictions(model, X, y, test_mask, cache), n_classes)
 
 
 def calibration_split(starts: np.ndarray, y: np.ndarray, minutes: float, window_sec: float,
@@ -256,14 +272,15 @@ def calibration_split(starts: np.ndarray, y: np.ndarray, minutes: float, window_
 
 
 def _calibration_fold(model, X, y, subjects, starts, subject, minutes, window_sec, stride_sec,
-                      weight, n_classes) -> dict:
+                      weight, n_classes, cache: Path | None = None) -> dict:
     own = np.flatnonzero(subjects == subject)
     calib_local, test_local = calibration_split(starts[own], y[own], minutes, window_sec, stride_sec)
     calib, test = own[calib_local], own[test_local]
     train = np.flatnonzero(subjects != subject)
     final_step = model.steps[-1][0]
 
-    before = clone(model).fit(X[train], y[train])
+    # The uncalibrated model is the plain LOSO model; its predictions are shared.
+    before_pred = _subject_predictions(model, X, y, subjects == subject, cache)[test_local]
     after_idx = np.r_[train, calib]
     sample_weight = np.r_[np.ones(len(train)), np.full(len(calib), weight)]
     try:
@@ -273,7 +290,7 @@ def _calibration_fold(model, X, y, subjects, starts, subject, minutes, window_se
         after = clone(model).fit(X[repeats], y[repeats])
     return {
         "n_calibration": int(len(calib)), "n_test": int(len(test)),
-        "before": _scores(y[test], before.predict(X[test]), n_classes),
+        "before": _scores(y[test], before_pred, n_classes),
         **_scores(y[test], after.predict(X[test]), n_classes),
     }
 
@@ -394,6 +411,8 @@ def evaluate(cfg: BaselineConfig, n_jobs: int = -1, max_minutes: float | None = 
                         variants = [None] + list(cfg.calibration_minutes) if not cross else [None]
                         for minutes in variants:
                             key = f"w{window_sec}_{task}_{feature_set}_{normalisation_tag(norm)}_{clf_name}"
+                            # Held-out predictions of the uncalibrated model, shared by plain and calibration runs.
+                            predictions = cache_dir / f"{key}__predictions"
                             if minutes is not None:
                                 key += f"_cal{minutes:g}"
                             if cross:
@@ -421,13 +440,14 @@ def evaluate(cfg: BaselineConfig, n_jobs: int = -1, max_minutes: float | None = 
                             elif minutes is None:
                                 order = _order(subjects)
                                 folds = _cached_folds(cache_dir / key, order, n_jobs, lambda s: (
-                                    _fold, model, X, y, subjects == s, n_classes), deadline)
+                                    _fold, model, X, y, subjects == s, n_classes, predictions / f"{s}.json"), deadline)
                                 n_windows = int(len(y))
                             else:
                                 order = _order(subjects)
                                 folds = _cached_folds(cache_dir / key, order, n_jobs, lambda s: (
                                     _calibration_fold, model, X, y, subjects, starts, s, minutes,
-                                    window_sec, cfg.stride_sec, cfg.calibration_weight, n_classes), deadline)
+                                    window_sec, cfg.stride_sec, cfg.calibration_weight, n_classes,
+                                    predictions / f"{s}.json"), deadline)
                                 n_windows = int(len(y))
                             if folds is None:  # time budget reached part-way; folds so far are saved
                                 pending += 1

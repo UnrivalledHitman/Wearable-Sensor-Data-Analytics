@@ -34,6 +34,21 @@ def expand_globs(patterns: list[str]) -> list[str]:
     return paths
 
 
+def take_shard(items: list, shard: str | None) -> list:
+    """With --shard i/N, keep every N-th item starting at i (0-based).
+
+    Shards are fixed by position in the full list, so N processes started
+    with 0/N ... N-1/N never work on the same run, however often they resume.
+    """
+    if shard is None:
+        return items
+    index, _, count = shard.partition("/")
+    index, count = int(index), int(count)
+    if not 0 <= index < count:
+        raise SystemExit(f"--shard must look like i/N with 0 <= i < N, got {shard!r}")
+    return items[index::count]
+
+
 def cmd_run(args) -> None:
     import torch
 
@@ -45,6 +60,7 @@ def cmd_run(args) -> None:
     configs = [load_config(path) for path in expand_globs(args.config)]
     if args.seeds:
         configs = [cfg.with_seed(seed) for cfg in configs for seed in args.seeds]
+    configs = take_shard(configs, args.shard)
     names = [cfg.name for cfg in configs]
     if len(set(names)) != len(names):
         raise SystemExit(f"Config run names must be unique, got {names}")
@@ -63,7 +79,7 @@ def cmd_run(args) -> None:
         if "report" in args.stages:
             report({cfg.name: cfg.out_dir}, cfg.out_dir / "report")
 
-    if "report" in args.stages and len(configs) > 1:
+    if "report" in args.stages and len(configs) > 1 and args.shard is None:
         label = "_vs_".join(names)
         if len(configs) > 3:  # keep Windows paths short
             label = f"{len(configs)}_runs_" + hashlib.sha1(label.encode()).hexdigest()[:8]
@@ -109,6 +125,7 @@ def cmd_cross(args) -> None:
     runs = [load_cross_config(path) for path in expand_globs(args.config)]
     if args.seeds:
         runs = [(train.with_seed(seed), test) for train, test in runs for seed in args.seeds]
+    runs = take_shard(runs, args.shard)
 
     deadline = None if args.max_minutes is None else time.perf_counter() + args.max_minutes * 60
     for train, test in runs:
@@ -139,6 +156,8 @@ def main() -> None:
     run.add_argument("--resume", action="store_true", help="keep folds already finished with the same config")
     run.add_argument("--max-minutes", type=float, default=None,
                      help="start no new fold after this long; rerun with --resume to continue")
+    run.add_argument("--shard", default=None, metavar="I/N",
+                     help="run only every N-th config (from I), to split work across parallel processes")
     run.add_argument("--seeds", type=int, nargs="+", default=None,
                      help="run each config once per seed, in <out_dir>_seed<N> folders")
     run.set_defaults(func=cmd_run)
@@ -158,6 +177,7 @@ def main() -> None:
     cross = sub.add_parser("cross", help="train on one dataset, test on every subject of another")
     cross.add_argument("--config", nargs="+", required=True, help="one or more cross-dataset TOML files")
     cross.add_argument("--seeds", type=int, nargs="+", default=None)
+    cross.add_argument("--shard", default=None, metavar="I/N")
     cross.add_argument("--device", default=None)
     cross.add_argument("--resume", action="store_true")
     cross.add_argument("--max-minutes", type=float, default=None)
