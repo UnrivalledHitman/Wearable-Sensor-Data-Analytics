@@ -1,0 +1,67 @@
+{
+  "subject": "S4",
+  "class_names": [
+    "baseline",
+    "stress",
+    "amusement"
+  ],
+  "accuracy": 0.7878787878787878,
+  "f1_macro": 0.6709401709401709,
+  "confusion_matrix": [
+    [
+      110,
+      0,
+      0
+    ],
+    [
+      0,
+      15,
+      42
+    ],
+    [
+      0,
+      0,
+      31
+    ]
+  ],
+  "classification_report": {
+    "baseline": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 110.0
+    },
+    "stress": {
+      "precision": 1.0,
+      "recall": 0.2631578947368421,
+      "f1-score": 0.4166666666666667,
+      "support": 57.0
+    },
+    "amusement": {
+      "precision": 0.4246575342465753,
+      "recall": 1.0,
+      "f1-score": 0.5961538461538461,
+      "support": 31.0
+    },
+    "accuracy": 0.7878787878787878,
+    "macro avg": {
+      "precision": 0.8082191780821918,
+      "recall": 0.7543859649122807,
+      "f1-score": 0.6709401709401709,
+      "support": 198.0
+    },
+    "weighted avg": {
+      "precision": 0.9099211290992113,
+      "recall": 0.7878787878787878,
+      "f1-score": 0.7688422688422688,
+      "support": 198.0
+    }
+  },
+  "best_val_loss": 1.259013577125848,
+  "epochs_run": 21,
+  "train_seconds": 17.2,
+  "seconds_per_epoch": 0.82,
+  "peak_gpu_mb": 554,
+  "n_parameters": 806275,
+  "seed": 52
+}

@@ -1,0 +1,52 @@
+# M4: measured efficiency. Run the stages as described in docs/M4_M6_how_to_run.md.
+
+[run]
+out_dir = "runs/m4"
+seed = 42
+
+[models]
+# One config per architecture; only the model and input size are used here.
+configs = [
+  "configs/m5/e_four_class_bigru_attn_rest5_w60.toml",
+  "configs/m3/b_four_class_bilstm_attn_w60.toml",
+  "configs/m3/b_four_class_cnn_lstm_w60.toml",
+  "configs/m5/e_four_class_cnn_rest5_w60.toml",
+  "configs/m3/b_four_class_bigru_only_w60.toml",
+  "configs/m5/e_four_class_tiny_dscnn_rest5_w60.toml",
+]
+
+[latency]
+threads = [1, 4]
+warmup = 50
+runs = 300
+stride_sec = 10      # a new 60 s window every 10 s
+
+[classical]
+raw_dir = "WESAD"
+subject = "S2"
+window_sec = 60
+warmup = 3
+runs = 30
+features_table = "features/features_w60_s5_p1.csv.gz"
+normalisation = "rest_minutes:5"
+task = "four_class"
+feature_sets = ["all_physio", "wrist_physio"]
+classifiers = ["RF", "AB", "LDA"]
+
+[quantised]
+runs_dir = "runs/m5"
+threads = 4          # per process, so two shards and M6 can share the CPU
+seeds = [42, 43, 44, 45, 46]
+configs = [
+  "configs/m5/e_binary_bigru_attn_rest5_w60.toml",
+  "configs/m5/e_binary_cnn_rest5_w60.toml",
+  "configs/m5/e_binary_tiny_dscnn_rest5_w60.toml",
+  "configs/m5/e_four_class_bigru_attn_rest5_w60.toml",
+  "configs/m5/e_four_class_cnn_rest5_w60.toml",
+  "configs/m5/e_four_class_tiny_dscnn_rest5_w60.toml",
+]
+
+[plot]
+deep_summary = "runs/m5_summary/seed_summary.csv"
+classical_summary = "runs/m5/baselines_normalisation/summary.csv"
+tasks = ["binary", "four_class"]

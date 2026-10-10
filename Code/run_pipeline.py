@@ -138,6 +138,18 @@ def cmd_cross(args) -> None:
         report({train.name: train.out_dir}, train.out_dir / "report")
 
 
+def cmd_stats(args) -> None:
+    from pipeline.stats import run
+
+    run(args.config)
+
+
+def cmd_efficiency(args) -> None:
+    from pipeline.efficiency import run
+
+    run(args.config, args.stages, args.shard)
+
+
 def cmd_seeds(args) -> None:
     from pipeline.seeds import summarise_seeds
 
@@ -182,6 +194,17 @@ def main() -> None:
     cross.add_argument("--resume", action="store_true")
     cross.add_argument("--max-minutes", type=float, default=None)
     cross.set_defaults(func=cmd_cross)
+
+    st = sub.add_parser("stats", help="M6: confidence intervals, paired tests, amusement analysis")
+    st.add_argument("--config", default=str(CODE_DIR / "configs" / "m6" / "stats.toml"))
+    st.set_defaults(func=cmd_stats)
+
+    eff = sub.add_parser("efficiency", help="M4: parameters, compute, size, CPU latency, int8 accuracy, plot")
+    eff.add_argument("--config", default=str(CODE_DIR / "configs" / "m4" / "efficiency.toml"))
+    eff.add_argument("--stages", nargs="+", required=True,
+                     choices=["static", "latency", "classical", "quantised", "plot"])
+    eff.add_argument("--shard", default=None, metavar="I/N", help="split the quantised stage across processes")
+    eff.set_defaults(func=cmd_efficiency)
 
     seeds = sub.add_parser("seeds", help="summarise runs repeated over seeds (<name>_seed<N> folders)")
     seeds.add_argument("--runs", required=True, help="folder holding the seeded run folders")

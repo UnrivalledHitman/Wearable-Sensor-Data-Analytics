@@ -1,0 +1,81 @@
+{
+  "config": {
+    "name": "h_binary_tiny_dscnn_nohv_w60_seed43",
+    "seed": 43,
+    "raw_dir": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\Stress-Predict",
+    "data_dir": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\data_sp_w60_s10_r32_rest5_wrist_nohv",
+    "out_dir": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\runs\\m5\\h_binary_tiny_dscnn_nohv_w60_seed43",
+    "preprocess": {
+      "target_rate": 32,
+      "window_sec": 60,
+      "stride_sec": 10,
+      "min_label_purity": 1.0,
+      "subject_normalisation": true,
+      "channels": [
+        "wr_bvp",
+        "wr_eda",
+        "wr_temp",
+        "wr_acc_x",
+        "wr_acc_y",
+        "wr_acc_z"
+      ],
+      "mode": "clean",
+      "normalisation_source": "rest_minutes",
+      "normalisation_minutes": 5.0,
+      "dataset": "stress_predict",
+      "exclude_hyperventilation": true
+    },
+    "model": {
+      "conv_channels": [
+        16,
+        32,
+        32,
+        32
+      ],
+      "downsample": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "kernel_size": 7,
+      "separable": true,
+      "rnn": "none",
+      "bidirectional": true,
+      "rnn_hidden": 128,
+      "rnn_layers": 2,
+      "attention": false,
+      "attn_heads": 4,
+      "dropout": 0.3,
+      "arch": "seq"
+    },
+    "train": {
+      "balancing": "weighted_sampler",
+      "batch_size": 128,
+      "epochs": 40,
+      "lr": 0.001,
+      "patience": 8,
+      "grad_clip": 5.0,
+      "val_fraction": 0.1,
+      "lr_scheduler": "plateau",
+      "min_delta": 0.0,
+      "test_batch_size": null,
+      "task": "binary",
+      "validation": "subjects",
+      "val_subjects": 2,
+      "calibration_minutes": [
+        1,
+        2,
+        4
+      ],
+      "calibration_epochs": 10,
+      "calibration_lr": 0.001,
+      "calibration_layers": "head"
+    }
+  },
+  "git_commit": "cc9d3d23ee64cec75ed4ac73fedcb4d88a0748d8",
+  "python": "3.13.14",
+  "torch": "2.13.0+cu132",
+  "numpy": "2.4.4",
+  "device": "NVIDIA GeForce RTX 4060 Laptop GPU"
+}

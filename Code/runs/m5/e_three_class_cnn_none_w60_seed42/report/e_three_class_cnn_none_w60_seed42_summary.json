@@ -1,0 +1,63 @@
+{
+  "label": "e_three_class_cnn_none_w60_seed42",
+  "source": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\runs\\m5\\e_three_class_cnn_none_w60_seed42",
+  "class_names": [
+    "baseline",
+    "stress",
+    "amusement"
+  ],
+  "n_folds": 15,
+  "n_windows": 3040,
+  "mean": {
+    "accuracy": 0.4516239366983205,
+    "f1_macro": 0.34874503051764005,
+    "balanced_accuracy": 0.4126449311624251,
+    "kappa": 0.16819054203034198,
+    "majority_accuracy": 0.5497845212061798,
+    "majority_f1_macro": 0.2364886079527241,
+    "f1_baseline": 0.46976441286786347,
+    "f1_stress": 0.41628269633312515,
+    "f1_amusement": 0.16018798235193143
+  },
+  "std": {
+    "accuracy": 0.23427194281817768,
+    "f1_macro": 0.22298619814904294,
+    "balanced_accuracy": 0.2201246259719534,
+    "kappa": 0.28247747545460955,
+    "majority_accuracy": 0.00800663650301656,
+    "majority_f1_macro": 0.002225433315014069,
+    "f1_baseline": 0.3390234593220266,
+    "f1_stress": 0.3333066476722212,
+    "f1_amusement": 0.29320161928719146
+  },
+  "folds_below_majority_accuracy": 9,
+  "pooled_confusion_matrix": [
+    [
+      782,
+      423,
+      466
+    ],
+    [
+      172,
+      479,
+      253
+    ],
+    [
+      165,
+      186,
+      114
+    ]
+  ],
+  "class_share": {
+    "baseline": 0.5497,
+    "stress": 0.2974,
+    "amusement": 0.153
+  },
+  "cost": {
+    "n_parameters": 70915.0,
+    "seconds_per_epoch": 0.5526666666666666,
+    "train_seconds": 4.953333333333333,
+    "epochs_run": 9.0,
+    "peak_gpu_mb": 309.0
+  }
+}

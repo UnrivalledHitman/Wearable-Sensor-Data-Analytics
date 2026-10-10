@@ -1,0 +1,50 @@
+{
+  "label": "i_binary_bilstm_attn_wesad_to_sp_hv_seed46",
+  "source": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\runs\\m5\\i_binary_bilstm_attn_wesad_to_sp_hv_seed46",
+  "class_names": [
+    "non-stress",
+    "stress"
+  ],
+  "n_folds": 34,
+  "n_windows": 9852,
+  "mean": {
+    "accuracy": 0.6064922492170151,
+    "f1_macro": 0.5065710887382483,
+    "balanced_accuracy": 0.5385990368567759,
+    "kappa": 0.08214978557704353,
+    "majority_accuracy": 0.6876426276625831,
+    "majority_f1_macro": 0.4073460221351918,
+    "f1_non-stress": 0.6934211443105719,
+    "f1_stress": 0.31972103316592465
+  },
+  "std": {
+    "accuracy": 0.12935857126950556,
+    "f1_macro": 0.11295974166318917,
+    "balanced_accuracy": 0.10041386363722482,
+    "kappa": 0.2030476529744803,
+    "majority_accuracy": 0.0235009535802984,
+    "majority_f1_macro": 0.008248373421519684,
+    "f1_non-stress": 0.14922345188862932,
+    "f1_stress": 0.19370913754930574
+  },
+  "folds_below_majority_accuracy": 21,
+  "pooled_confusion_matrix": [
+    [
+      4892,
+      1886
+    ],
+    [
+      1988,
+      1086
+    ]
+  ],
+  "class_share": {
+    "non-stress": 0.688,
+    "stress": 0.312
+  },
+  "cost": {
+    "n_parameters": 954626.0,
+    "train_seconds": 9.600000000000001,
+    "epochs_run": 16.0
+  }
+}

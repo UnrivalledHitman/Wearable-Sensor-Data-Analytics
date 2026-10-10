@@ -1,0 +1,1051 @@
+{
+  "dataset": "stress_predict",
+  "test_dataset": null,
+  "window_sec": 60,
+  "task": "binary",
+  "feature_set": "wrist_all",
+  "normalisation": "none",
+  "subject_normalisation": false,
+  "classifier": "kNN",
+  "calibration_minutes": 4,
+  "n_features": 56,
+  "n_windows": 19262,
+  "class_share": [
+    0.7029,
+    0.2971
+  ],
+  "majority_accuracy": 0.7029384279929395,
+  "majority_f1_macro": 0.4127797085543565,
+  "random_accuracy": 0.5,
+  "random_f1_macro": 0.47852350930997045,
+  "accuracy_mean": 0.6962899432578021,
+  "accuracy_std": 0.06512662378684275,
+  "f1_macro_mean": 0.6006075333810514,
+  "f1_macro_std": 0.07221024109503907,
+  "accuracy_pooled": 0.6968467062129254,
+  "accuracy_before_mean": 0.7105643161259583,
+  "f1_macro_before_mean": 0.6047309701167003,
+  "n_calibration_mean": 74.0,
+  "per_subject": {
+    "S02": {
+      "n_calibration": 74,
+      "n_test": 520,
+      "before": {
+        "accuracy": 0.7038461538461539,
+        "f1_macro": 0.48717948717948717,
+        "confusion_matrix": [
+          [
+            352,
+            33
+          ],
+          [
+            121,
+            14
+          ]
+        ]
+      },
+      "accuracy": 0.6961538461538461,
+      "f1_macro": 0.4827629624033643,
+      "confusion_matrix": [
+        [
+          348,
+          37
+        ],
+        [
+          121,
+          14
+        ]
+      ]
+    },
+    "S03": {
+      "n_calibration": 74,
+      "n_test": 469,
+      "before": {
+        "accuracy": 0.7931769722814499,
+        "f1_macro": 0.5523444034440345,
+        "confusion_matrix": [
+          [
+            358,
+            15
+          ],
+          [
+            82,
+            14
+          ]
+        ]
+      },
+      "accuracy": 0.7974413646055437,
+      "f1_macro": 0.5674145848908221,
+      "confusion_matrix": [
+        [
+          358,
+          15
+        ],
+        [
+          80,
+          16
+        ]
+      ]
+    },
+    "S04": {
+      "n_calibration": 74,
+      "n_test": 514,
+      "before": {
+        "accuracy": 0.8073929961089494,
+        "f1_macro": 0.7418461304314741,
+        "confusion_matrix": [
+          [
+            337,
+            60
+          ],
+          [
+            39,
+            78
+          ]
+        ]
+      },
+      "accuracy": 0.8015564202334631,
+      "f1_macro": 0.7333211255569798,
+      "confusion_matrix": [
+        [
+          336,
+          61
+        ],
+        [
+          41,
+          76
+        ]
+      ]
+    },
+    "S05": {
+      "n_calibration": 74,
+      "n_test": 463,
+      "before": {
+        "accuracy": 0.6695464362850972,
+        "f1_macro": 0.6582992865859836,
+        "confusion_matrix": [
+          [
+            197,
+            139
+          ],
+          [
+            14,
+            113
+          ]
+        ]
+      },
+      "accuracy": 0.6868250539956804,
+      "f1_macro": 0.6634584053938892,
+      "confusion_matrix": [
+        [
+          220,
+          116
+        ],
+        [
+          29,
+          98
+        ]
+      ]
+    },
+    "S06": {
+      "n_calibration": 74,
+      "n_test": 475,
+      "before": {
+        "accuracy": 0.7452631578947368,
+        "f1_macro": 0.6636312028513072,
+        "confusion_matrix": [
+          [
+            294,
+            47
+          ],
+          [
+            74,
+            60
+          ]
+        ]
+      },
+      "accuracy": 0.7094736842105264,
+      "f1_macro": 0.5918430884184309,
+      "confusion_matrix": [
+        [
+          296,
+          45
+        ],
+        [
+          93,
+          41
+        ]
+      ]
+    },
+    "S07": {
+      "n_calibration": 74,
+      "n_test": 487,
+      "before": {
+        "accuracy": 0.6242299794661191,
+        "f1_macro": 0.5139163871390002,
+        "confusion_matrix": [
+          [
+            268,
+            108
+          ],
+          [
+            75,
+            36
+          ]
+        ]
+      },
+      "accuracy": 0.6180698151950719,
+      "f1_macro": 0.5096466155645056,
+      "confusion_matrix": [
+        [
+          265,
+          111
+        ],
+        [
+          75,
+          36
+        ]
+      ]
+    },
+    "S08": {
+      "n_calibration": 74,
+      "n_test": 438,
+      "before": {
+        "accuracy": 0.6004566210045662,
+        "f1_macro": 0.5855748695628666,
+        "confusion_matrix": [
+          [
+            173,
+            157
+          ],
+          [
+            18,
+            90
+          ]
+        ]
+      },
+      "accuracy": 0.6278538812785388,
+      "f1_macro": 0.609482603011722,
+      "confusion_matrix": [
+        [
+          185,
+          145
+        ],
+        [
+          18,
+          90
+        ]
+      ]
+    },
+    "S09": {
+      "n_calibration": 74,
+      "n_test": 442,
+      "before": {
+        "accuracy": 0.6108597285067874,
+        "f1_macro": 0.5131659836065574,
+        "confusion_matrix": [
+          [
+            234,
+            115
+          ],
+          [
+            57,
+            36
+          ]
+        ]
+      },
+      "accuracy": 0.6402714932126696,
+      "f1_macro": 0.5392059797396977,
+      "confusion_matrix": [
+        [
+          245,
+          104
+        ],
+        [
+          55,
+          38
+        ]
+      ]
+    },
+    "S10": {
+      "n_calibration": 74,
+      "n_test": 413,
+      "before": {
+        "accuracy": 0.7288135593220338,
+        "f1_macro": 0.6468144890354895,
+        "confusion_matrix": [
+          [
+            250,
+            61
+          ],
+          [
+            51,
+            51
+          ]
+        ]
+      },
+      "accuracy": 0.7215496368038741,
+      "f1_macro": 0.6269196025293586,
+      "confusion_matrix": [
+        [
+          253,
+          58
+        ],
+        [
+          57,
+          45
+        ]
+      ]
+    },
+    "S11": {
+      "n_calibration": 74,
+      "n_test": 458,
+      "before": {
+        "accuracy": 0.7903930131004366,
+        "f1_macro": 0.7318501170960188,
+        "confusion_matrix": [
+          [
+            288,
+            35
+          ],
+          [
+            61,
+            74
+          ]
+        ]
+      },
+      "accuracy": 0.5436681222707423,
+      "f1_macro": 0.5436137294446908,
+      "confusion_matrix": [
+        [
+          127,
+          196
+        ],
+        [
+          13,
+          122
+        ]
+      ]
+    },
+    "S12": {
+      "n_calibration": 74,
+      "n_test": 474,
+      "before": {
+        "accuracy": 0.7278481012658228,
+        "f1_macro": 0.6988875592784647,
+        "confusion_matrix": [
+          [
+            246,
+            104
+          ],
+          [
+            25,
+            99
+          ]
+        ]
+      },
+      "accuracy": 0.7616033755274262,
+      "f1_macro": 0.7362348387478024,
+      "confusion_matrix": [
+        [
+          254,
+          96
+        ],
+        [
+          17,
+          107
+        ]
+      ]
+    },
+    "S13": {
+      "n_calibration": 74,
+      "n_test": 479,
+      "before": {
+        "accuracy": 0.6283924843423799,
+        "f1_macro": 0.5231858446671439,
+        "confusion_matrix": [
+          [
+            263,
+            76
+          ],
+          [
+            102,
+            38
+          ]
+        ]
+      },
+      "accuracy": 0.6993736951983298,
+      "f1_macro": 0.6492983526540574,
+      "confusion_matrix": [
+        [
+          258,
+          81
+        ],
+        [
+          63,
+          77
+        ]
+      ]
+    },
+    "S14": {
+      "n_calibration": 74,
+      "n_test": 520,
+      "before": {
+        "accuracy": 0.7115384615384616,
+        "f1_macro": 0.6133943971926485,
+        "confusion_matrix": [
+          [
+            316,
+            67
+          ],
+          [
+            83,
+            54
+          ]
+        ]
+      },
+      "accuracy": 0.7230769230769231,
+      "f1_macro": 0.6288586213049426,
+      "confusion_matrix": [
+        [
+          319,
+          64
+        ],
+        [
+          80,
+          57
+        ]
+      ]
+    },
+    "S15": {
+      "n_calibration": 74,
+      "n_test": 497,
+      "before": {
+        "accuracy": 0.6901408450704225,
+        "f1_macro": 0.44844632768361586,
+        "confusion_matrix": [
+          [
+            336,
+            37
+          ],
+          [
+            117,
+            7
+          ]
+        ]
+      },
+      "accuracy": 0.682092555331992,
+      "f1_macro": 0.4445906184575341,
+      "confusion_matrix": [
+        [
+          332,
+          41
+        ],
+        [
+          117,
+          7
+        ]
+      ]
+    },
+    "S16": {
+      "n_calibration": 74,
+      "n_test": 498,
+      "before": {
+        "accuracy": 0.6867469879518072,
+        "f1_macro": 0.5999176022247399,
+        "confusion_matrix": [
+          [
+            287,
+            104
+          ],
+          [
+            52,
+            55
+          ]
+        ]
+      },
+      "accuracy": 0.6546184738955824,
+      "f1_macro": 0.5727454110135675,
+      "confusion_matrix": [
+        [
+          272,
+          119
+        ],
+        [
+          53,
+          54
+        ]
+      ]
+    },
+    "S17": {
+      "n_calibration": 74,
+      "n_test": 474,
+      "before": {
+        "accuracy": 0.7362869198312236,
+        "f1_macro": 0.6595825361531964,
+        "confusion_matrix": [
+          [
+            287,
+            61
+          ],
+          [
+            64,
+            62
+          ]
+        ]
+      },
+      "accuracy": 0.7616033755274262,
+      "f1_macro": 0.6922626126824896,
+      "confusion_matrix": [
+        [
+          293,
+          55
+        ],
+        [
+          58,
+          68
+        ]
+      ]
+    },
+    "S18": {
+      "n_calibration": 74,
+      "n_test": 492,
+      "before": {
+        "accuracy": 0.7113821138211383,
+        "f1_macro": 0.6270100582996989,
+        "confusion_matrix": [
+          [
+            292,
+            72
+          ],
+          [
+            70,
+            58
+          ]
+        ]
+      },
+      "accuracy": 0.6849593495934959,
+      "f1_macro": 0.6290549315848101,
+      "confusion_matrix": [
+        [
+          264,
+          100
+        ],
+        [
+          55,
+          73
+        ]
+      ]
+    },
+    "S19": {
+      "n_calibration": 74,
+      "n_test": 451,
+      "before": {
+        "accuracy": 0.7694013303769401,
+        "f1_macro": 0.608742075408742,
+        "confusion_matrix": [
+          [
+            318,
+            38
+          ],
+          [
+            66,
+            29
+          ]
+        ]
+      },
+      "accuracy": 0.7560975609756098,
+      "f1_macro": 0.6214133089133089,
+      "confusion_matrix": [
+        [
+          305,
+          51
+        ],
+        [
+          59,
+          36
+        ]
+      ]
+    },
+    "S20": {
+      "n_calibration": 74,
+      "n_test": 489,
+      "before": {
+        "accuracy": 0.7750511247443763,
+        "f1_macro": 0.6568464836174339,
+        "confusion_matrix": [
+          [
+            333,
+            40
+          ],
+          [
+            70,
+            46
+          ]
+        ]
+      },
+      "accuracy": 0.7832310838445807,
+      "f1_macro": 0.6452058920162085,
+      "confusion_matrix": [
+        [
+          344,
+          29
+        ],
+        [
+          77,
+          39
+        ]
+      ]
+    },
+    "S21": {
+      "n_calibration": 74,
+      "n_test": 455,
+      "before": {
+        "accuracy": 0.6659340659340659,
+        "f1_macro": 0.5869170489296636,
+        "confusion_matrix": [
+          [
+            251,
+            68
+          ],
+          [
+            84,
+            52
+          ]
+        ]
+      },
+      "accuracy": 0.6197802197802198,
+      "f1_macro": 0.5836705118237258,
+      "confusion_matrix": [
+        [
+          208,
+          111
+        ],
+        [
+          62,
+          74
+        ]
+      ]
+    },
+    "S22": {
+      "n_calibration": 74,
+      "n_test": 419,
+      "before": {
+        "accuracy": 0.6921241050119332,
+        "f1_macro": 0.5778485906417676,
+        "confusion_matrix": [
+          [
+            254,
+            35
+          ],
+          [
+            94,
+            36
+          ]
+        ]
+      },
+      "accuracy": 0.7040572792362768,
+      "f1_macro": 0.5982866332652935,
+      "confusion_matrix": [
+        [
+          255,
+          34
+        ],
+        [
+          90,
+          40
+        ]
+      ]
+    },
+    "S23": {
+      "n_calibration": 74,
+      "n_test": 424,
+      "before": {
+        "accuracy": 0.6863207547169812,
+        "f1_macro": 0.540238881415352,
+        "confusion_matrix": [
+          [
+            265,
+            41
+          ],
+          [
+            92,
+            26
+          ]
+        ]
+      },
+      "accuracy": 0.7264150943396226,
+      "f1_macro": 0.5694677871148459,
+      "confusion_matrix": [
+        [
+          282,
+          24
+        ],
+        [
+          92,
+          26
+        ]
+      ]
+    },
+    "S24": {
+      "n_calibration": 74,
+      "n_test": 466,
+      "before": {
+        "accuracy": 0.7939914163090128,
+        "f1_macro": 0.769463855049162,
+        "confusion_matrix": [
+          [
+            261,
+            82
+          ],
+          [
+            14,
+            109
+          ]
+        ]
+      },
+      "accuracy": 0.6952789699570815,
+      "f1_macro": 0.6556984681984682,
+      "confusion_matrix": [
+        [
+          241,
+          102
+        ],
+        [
+          40,
+          83
+        ]
+      ]
+    },
+    "S25": {
+      "n_calibration": 74,
+      "n_test": 455,
+      "before": {
+        "accuracy": 0.654945054945055,
+        "f1_macro": 0.6199881902958277,
+        "confusion_matrix": [
+          [
+            218,
+            115
+          ],
+          [
+            42,
+            80
+          ]
+        ]
+      },
+      "accuracy": 0.6043956043956044,
+      "f1_macro": 0.5649541050484447,
+      "confusion_matrix": [
+        [
+          206,
+          127
+        ],
+        [
+          53,
+          69
+        ]
+      ]
+    },
+    "S26": {
+      "n_calibration": 74,
+      "n_test": 454,
+      "before": {
+        "accuracy": 0.7136563876651982,
+        "f1_macro": 0.5295711780647219,
+        "confusion_matrix": [
+          [
+            304,
+            30
+          ],
+          [
+            100,
+            20
+          ]
+        ]
+      },
+      "accuracy": 0.7136563876651982,
+      "f1_macro": 0.5116340648065403,
+      "confusion_matrix": [
+        [
+          308,
+          26
+        ],
+        [
+          104,
+          16
+        ]
+      ]
+    },
+    "S27": {
+      "n_calibration": 74,
+      "n_test": 482,
+      "before": {
+        "accuracy": 0.6929460580912863,
+        "f1_macro": 0.5431513692138228,
+        "confusion_matrix": [
+          [
+            305,
+            35
+          ],
+          [
+            113,
+            29
+          ]
+        ]
+      },
+      "accuracy": 0.7282157676348547,
+      "f1_macro": 0.6396066277403926,
+      "confusion_matrix": [
+        [
+          295,
+          45
+        ],
+        [
+          86,
+          56
+        ]
+      ]
+    },
+    "S28": {
+      "n_calibration": 74,
+      "n_test": 466,
+      "before": {
+        "accuracy": 0.7145922746781116,
+        "f1_macro": 0.6005413940897812,
+        "confusion_matrix": [
+          [
+            291,
+            53
+          ],
+          [
+            80,
+            42
+          ]
+        ]
+      },
+      "accuracy": 0.6716738197424893,
+      "f1_macro": 0.5718634968864655,
+      "confusion_matrix": [
+        [
+          269,
+          75
+        ],
+        [
+          78,
+          44
+        ]
+      ]
+    },
+    "S29": {
+      "n_calibration": 74,
+      "n_test": 467,
+      "before": {
+        "accuracy": 0.7944325481798715,
+        "f1_macro": 0.687712454722764,
+        "confusion_matrix": [
+          [
+            322,
+            26
+          ],
+          [
+            70,
+            49
+          ]
+        ]
+      },
+      "accuracy": 0.7601713062098501,
+      "f1_macro": 0.6559852670349908,
+      "confusion_matrix": [
+        [
+          306,
+          42
+        ],
+        [
+          70,
+          49
+        ]
+      ]
+    },
+    "S30": {
+      "n_calibration": 74,
+      "n_test": 475,
+      "before": {
+        "accuracy": 0.7452631578947368,
+        "f1_macro": 0.6672456216529165,
+        "confusion_matrix": [
+          [
+            292,
+            80
+          ],
+          [
+            41,
+            62
+          ]
+        ]
+      },
+      "accuracy": 0.7578947368421053,
+      "f1_macro": 0.6837458387610363,
+      "confusion_matrix": [
+        [
+          295,
+          77
+        ],
+        [
+          38,
+          65
+        ]
+      ]
+    },
+    "S31": {
+      "n_calibration": 74,
+      "n_test": 472,
+      "before": {
+        "accuracy": 0.6758474576271186,
+        "f1_macro": 0.5480370252154485,
+        "confusion_matrix": [
+          [
+            285,
+            65
+          ],
+          [
+            88,
+            34
+          ]
+        ]
+      },
+      "accuracy": 0.5953389830508474,
+      "f1_macro": 0.5180661060712166,
+      "confusion_matrix": [
+        [
+          235,
+          115
+        ],
+        [
+          76,
+          46
+        ]
+      ]
+    },
+    "S32": {
+      "n_calibration": 74,
+      "n_test": 450,
+      "before": {
+        "accuracy": 0.7333333333333333,
+        "f1_macro": 0.5094654990734349,
+        "confusion_matrix": [
+          [
+            317,
+            11
+          ],
+          [
+            109,
+            13
+          ]
+        ]
+      },
+      "accuracy": 0.6711111111111111,
+      "f1_macro": 0.5341484569541983,
+      "confusion_matrix": [
+        [
+          273,
+          55
+        ],
+        [
+          93,
+          29
+        ]
+      ]
+    },
+    "S33": {
+      "n_calibration": 74,
+      "n_test": 446,
+      "before": {
+        "accuracy": 0.6748878923766816,
+        "f1_macro": 0.6275520488380799,
+        "confusion_matrix": [
+          [
+            230,
+            96
+          ],
+          [
+            49,
+            71
+          ]
+        ]
+      },
+      "accuracy": 0.6973094170403588,
+      "f1_macro": 0.6479503236331106,
+      "confusion_matrix": [
+        [
+          239,
+          87
+        ],
+        [
+          48,
+          72
+        ]
+      ]
+    },
+    "S34": {
+      "n_calibration": 74,
+      "n_test": 515,
+      "before": {
+        "accuracy": 0.6349514563106796,
+        "f1_macro": 0.544984585307166,
+        "confusion_matrix": [
+          [
+            278,
+            121
+          ],
+          [
+            67,
+            49
+          ]
+        ]
+      },
+      "accuracy": 0.5844660194174758,
+      "f1_macro": 0.4947647339274581,
+      "confusion_matrix": [
+        [
+          259,
+          140
+        ],
+        [
+          74,
+          42
+        ]
+      ]
+    },
+    "S35": {
+      "n_calibration": 74,
+      "n_test": 516,
+      "before": {
+        "accuracy": 0.7751937984496124,
+        "f1_macro": 0.6775,
+        "confusion_matrix": [
+          [
+            342,
+            37
+          ],
+          [
+            79,
+            58
+          ]
+        ]
+      },
+      "accuracy": 0.7945736434108527,
+      "f1_macro": 0.7034804293613792,
+      "confusion_matrix": [
+        [
+          348,
+          31
+        ],
+        [
+          75,
+          62
+        ]
+      ]
+    }
+  }
+}

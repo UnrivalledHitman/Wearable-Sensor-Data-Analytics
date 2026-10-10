@@ -1,0 +1,52 @@
+{
+  "label": "h_binary_bigru_attn_nohv_w60_seed43",
+  "source": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\runs\\m5\\h_binary_bigru_attn_nohv_w60_seed43",
+  "class_names": [
+    "non-stress",
+    "stress"
+  ],
+  "n_folds": 34,
+  "n_windows": 9633,
+  "mean": {
+    "accuracy": 0.6484136148171312,
+    "f1_macro": 0.5945208092910255,
+    "balanced_accuracy": 0.6363845307845971,
+    "kappa": 0.24568499502774865,
+    "majority_accuracy": 0.7032995378911522,
+    "majority_f1_macro": 0.4127911858815444,
+    "f1_non-stress": 0.7059081589127357,
+    "f1_stress": 0.48313345966931515
+  },
+  "std": {
+    "accuracy": 0.11114712809087991,
+    "f1_macro": 0.10671700937562575,
+    "balanced_accuracy": 0.09975829357037737,
+    "kappa": 0.17823809105275287,
+    "majority_accuracy": 0.024017266507494632,
+    "majority_f1_macro": 0.008259149460931644,
+    "f1_non-stress": 0.1427847200390214,
+    "f1_stress": 0.15954731616464218
+  },
+  "folds_below_majority_accuracy": 21,
+  "pooled_confusion_matrix": [
+    [
+      4515,
+      2263
+    ],
+    [
+      1113,
+      1742
+    ]
+  ],
+  "class_share": {
+    "non-stress": 0.7036,
+    "stress": 0.2964
+  },
+  "cost": {
+    "n_parameters": 806146.0,
+    "seconds_per_epoch": 3.0155882352941172,
+    "train_seconds": 30.852941176470587,
+    "epochs_run": 10.205882352941176,
+    "peak_gpu_mb": 554.0
+  }
+}

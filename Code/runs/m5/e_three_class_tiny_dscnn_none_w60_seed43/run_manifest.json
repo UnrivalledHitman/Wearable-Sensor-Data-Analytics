@@ -1,0 +1,85 @@
+{
+  "config": {
+    "name": "e_three_class_tiny_dscnn_none_w60_seed43",
+    "seed": 43,
+    "raw_dir": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\WESAD",
+    "data_dir": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\data_clean_w60_s10_r32_none",
+    "out_dir": "C:\\Users\\indra\\OneDrive\\Documents\\GitHub\\Wearable-Sensor-Data-Analytics\\Code\\runs\\m5\\e_three_class_tiny_dscnn_none_w60_seed43",
+    "preprocess": {
+      "target_rate": 32,
+      "window_sec": 60,
+      "stride_sec": 10,
+      "min_label_purity": 1.0,
+      "subject_normalisation": false,
+      "channels": [
+        "ch_ecg",
+        "ch_eda",
+        "ch_emg",
+        "ch_resp",
+        "ch_temp",
+        "ch_acc_x",
+        "ch_acc_y",
+        "ch_acc_z",
+        "wr_bvp",
+        "wr_eda",
+        "wr_temp",
+        "wr_acc_x",
+        "wr_acc_y",
+        "wr_acc_z"
+      ],
+      "mode": "clean",
+      "normalisation_source": "recording",
+      "normalisation_minutes": 5.0,
+      "dataset": "wesad",
+      "exclude_hyperventilation": false
+    },
+    "model": {
+      "conv_channels": [
+        16,
+        32,
+        32,
+        32
+      ],
+      "downsample": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "kernel_size": 7,
+      "separable": true,
+      "rnn": "none",
+      "bidirectional": true,
+      "rnn_hidden": 128,
+      "rnn_layers": 2,
+      "attention": false,
+      "attn_heads": 4,
+      "dropout": 0.3,
+      "arch": "seq"
+    },
+    "train": {
+      "balancing": "weighted_sampler",
+      "batch_size": 128,
+      "epochs": 40,
+      "lr": 0.001,
+      "patience": 8,
+      "grad_clip": 5.0,
+      "val_fraction": 0.1,
+      "lr_scheduler": "plateau",
+      "min_delta": 0.0,
+      "test_batch_size": null,
+      "task": "three_class",
+      "validation": "subjects",
+      "val_subjects": 2,
+      "calibration_minutes": [],
+      "calibration_epochs": 10,
+      "calibration_lr": 0.0001,
+      "calibration_layers": "head"
+    }
+  },
+  "git_commit": "cc9d3d23ee64cec75ed4ac73fedcb4d88a0748d8",
+  "python": "3.13.14",
+  "torch": "2.13.0+cu132",
+  "numpy": "2.4.4",
+  "device": "NVIDIA GeForce RTX 4060 Laptop GPU"
+}
